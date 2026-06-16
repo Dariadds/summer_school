@@ -1,0 +1,110 @@
+# Аутентификация: схема безопасности и DTO потока OTP (вход, регистрация, смена телефона).
+# Ссылки: '#/components/...' — внутри файла; '../profile/models.yaml#/...' — на клиента.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Токен сессии, выдаётся после POST /auth/verify-code. Передаётся в заголовке Authorization: Bearer <token>.'
+
+  schemas:
+    RequestCodeRequest:
+      type: object
+      description: Запрос на отправку OTP-кода на номер телефона.
+      required:
+        - phone
+      properties:
+        phone:
+          type: string
+          description: Номер телефона в формате E.164.
+          pattern: '^\+[1-9]\d{1,14}$'
+          example: '+79991234567'
+
+    RequestCodeResponse:
+      type: object
+      description: Ответ на запрос OTP-кода.
+      required:
+        - ttl_seconds
+        - resend_after_seconds
+      properties:
+        ttl_seconds:
+          type: integer
+          description: Срок жизни кода в секундах.
+          example: 300
+        resend_after_seconds:
+          type: integer
+          description: Через сколько секунд можно запросить повторную отправку.
+          example: 60
+
+    VerifyCodeRequest:
+      type: object
+      description: >-
+        Подтверждение OTP-кода и вход/регистрация. Только phone и code: на этом шаге
+        ещё не известно, новый клиент или существующий, поэтому имя здесь не передаётся —
+        для нового клиента оно дозаполняется отдельным шагом (PATCH /profile, шаг 3 SCR-001).
+      required:
+        - phone
+        - code
+      properties:
+        phone:
+          type: string
+          description: Номер телефона в формате E.164.
+          pattern: '^\+[1-9]\d{1,14}$'
+          example: '+79991234567'
+        code:
+          type: string
+          description: OTP-код из SMS (4–6 цифр).
+          pattern: '^\d{4,6}$'
+          example: '1234'
+
+    VerifyCodeResponse:
+      type: object
+      description: >-
+        Ответ на подтверждение кода — сессия и данные клиента. Для нового клиента
+        (is_new=true) поле client.name пустое/отсутствует: имя дозаполняется через
+        PATCH /profile (шаг 3 SCR-001). Существующий клиент возвращается с заполненным именем.
+      required:
+        - token
+        - client
+        - is_new
+      properties:
+        token:
+          type: string
+          description: Bearer-токен сессии.
+        client:
+          $ref: '../profile/models.yaml#/components/schemas/Client'
+        is_new:
+          type: boolean
+          description: true, если клиент только что зарегистрирован (имя ещё не задано).
+
+    ChangePhoneRequestCodeRequest:
+      type: object
+      description: Запрос на отправку OTP-кода для смены номера телефона.
+      required:
+        - new_phone
+      properties:
+        new_phone:
+          type: string
+          description: Новый номер телефона в формате E.164.
+          pattern: '^\+[1-9]\d{1,14}$'
+          example: '+79991234567'
+
+    ChangePhoneConfirmRequest:
+      type: object
+      description: Подтверждение смены номера телефона.
+      required:
+        - new_phone
+        - code
+      properties:
+        new_phone:
+          type: string
+          description: Новый номер телефона в формате E.164.
+          pattern: '^\+[1-9]\d{1,14}$'
+          example: '+79991234567'
+        code:
+          type: string
+          description: OTP-код из SMS (4–6 цифр).
+          pattern: '^\d{4,6}$'
+          example: '1234'

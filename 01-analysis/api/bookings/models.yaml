@@ -1,0 +1,162 @@
+# Бронь и её представления.
+# Ссылки: '#/components/schemas/...' — внутри файла;
+# '../slots/...' и '../common/...' — на соседние домены.
+
+components:
+  schemas:
+    BookingStatus:
+      type: string
+      description: >-
+        Статус брони. late_cancel — поздняя отмена (менее 2 часов до начала):
+        место и доска НЕ освобождаются.
+      enum:
+        - active
+        - cancelled
+        - late_cancel
+
+    CreateBookingRequest:
+      type: object
+      description: Запрос на создание брони.
+      required:
+        - slot_id
+        - seats_count
+        - rental_count
+      properties:
+        slot_id:
+          type: string
+          format: uuid
+          description: Идентификатор слота.
+        seats_count:
+          type: integer
+          description: Число мест.
+          minimum: 1
+          maximum: 3
+          example: 2
+        rental_count:
+          type: integer
+          description: Число прокатных досок. Не больше seats_count.
+          minimum: 0
+          maximum: 3
+          example: 1
+
+    Booking:
+      type: object
+      description: Полные данные брони для экрана деталей (SCR-006).
+      required:
+        - id
+        - slot_id
+        - client_id
+        - seats_count
+        - rental_count
+        - status
+        - price_total
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор брони.
+        slot_id:
+          type: string
+          format: uuid
+          description: Идентификатор слота, на который оформлена бронь.
+        client_id:
+          type: string
+          format: uuid
+          description: Идентификатор клиента, оформившего бронь.
+        seats_count:
+          type: integer
+          description: Число забронированных мест.
+          minimum: 1
+          maximum: 3
+          example: 2
+        rental_count:
+          type: integer
+          description: Число прокатных досок (0..seats_count).
+          minimum: 0
+          maximum: 3
+          example: 1
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        price_total:
+          type: integer
+          description: Производное поле в рублях (валюта RUB) = price·seats_count + rental_price·rental_count.
+          readOnly: true
+          example: 5800
+        created_at:
+          type: string
+          format: date-time
+          description: Дата и время создания брони.
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата и время отмены, если бронь была отменена.
+        slot:
+          $ref: '../slots/models.yaml#/components/schemas/Slot'
+
+    BookingSummary:
+      type: object
+      description: Урезанное представление брони для списка (SCR-005).
+      required:
+        - id
+        - slot_id
+        - seats_count
+        - rental_count
+        - status
+        - price_total
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Идентификатор брони.
+        slot_id:
+          type: string
+          format: uuid
+          description: Идентификатор слота, на который оформлена бронь.
+        seats_count:
+          type: integer
+          description: Число забронированных мест.
+          minimum: 1
+          maximum: 3
+          example: 2
+        rental_count:
+          type: integer
+          description: Число прокатных досок (0..seats_count).
+          minimum: 0
+          maximum: 3
+          example: 1
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        price_total:
+          type: integer
+          description: Производное поле в рублях (валюта RUB) = price·seats_count + rental_price·rental_count.
+          readOnly: true
+          example: 5800
+        created_at:
+          type: string
+          format: date-time
+          description: Дата и время создания брони.
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата и время отмены, если бронь была отменена.
+        slot:
+          $ref: '../slots/models.yaml#/components/schemas/SlotSummary'
+
+    BookingListResponse:
+      type: object
+      description: Постраничный список броней (SCR-005).
+      required:
+        - items
+        - meta
+      properties:
+        items:
+          type: array
+          description: Элементы списка броней.
+          items:
+            $ref: '#/components/schemas/BookingSummary'
+        meta:
+          $ref: '../common/models.yaml#/components/schemas/PaginationMeta'
