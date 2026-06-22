@@ -19,21 +19,24 @@ func TestSlotRepositoryListReadsSeedSlots(t *testing.T) {
 	t.Cleanup(db.Close)
 
 	repo := postgres.NewSlotRepository(db)
-	slots, err := repo.List(ctx, 20, 0)
+	list, err := repo.List(ctx, postgres.SlotFilters{Limit: 20})
 	if err != nil {
 		t.Fatalf("List() error = %v", err)
 	}
 
-	if len(slots) != 2 {
-		t.Fatalf("len(slots) = %d, want %d", len(slots), 2)
+	if len(list.Items) != 2 {
+		t.Fatalf("len(slots) = %d, want %d", len(list.Items), 2)
 	}
-	if slots[0].ID != "55555555-5555-5555-5555-555555555555" {
-		t.Fatalf("first slot id = %q", slots[0].ID)
+	if list.Total != 2 {
+		t.Fatalf("total = %d, want %d", list.Total, 2)
 	}
-	if slots[0].FreeSeats != 8 || slots[0].FreeRentalBoards != 12 {
-		t.Fatalf("unexpected availability: seats=%d boards=%d", slots[0].FreeSeats, slots[0].FreeRentalBoards)
+	if list.Items[0].ID != "55555555-5555-5555-5555-555555555555" {
+		t.Fatalf("first slot id = %q", list.Items[0].ID)
 	}
-	if slots[0].RouteName == "" || slots[0].InstructorName == "" {
+	if list.Items[0].FreeSeats != 8 || list.Items[0].FreeRentalBoards != 12 {
+		t.Fatalf("unexpected availability: seats=%d boards=%d", list.Items[0].FreeSeats, list.Items[0].FreeRentalBoards)
+	}
+	if list.Items[0].RouteName == "" || list.Items[0].InstructorName == "" {
 		t.Fatal("slot must include route and instructor data")
 	}
 }

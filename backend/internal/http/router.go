@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	authapi "summer-school-2026/backend/internal/http/openapi/auth"
+	instructorsapi "summer-school-2026/backend/internal/http/openapi/instructors"
 	profileapi "summer-school-2026/backend/internal/http/openapi/profile"
+	slotsapi "summer-school-2026/backend/internal/http/openapi/slots"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -15,8 +17,10 @@ type healthResponse struct {
 }
 
 type RouterOptions struct {
-	Auth    authapi.ServerInterface
-	Profile profileapi.ServerInterface
+	Auth        authapi.ServerInterface
+	Profile     profileapi.ServerInterface
+	Slots       slotsapi.ServerInterface
+	Instructors instructorsapi.ServerInterface
 }
 
 func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
@@ -46,6 +50,12 @@ func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
 	}
 	if opts.Profile != nil {
 		profileapi.HandlerFromMux(opts.Profile, router)
+	}
+	if opts.Slots != nil {
+		slotsapi.HandlerFromMux(opts.Slots, router)
+	}
+	if opts.Instructors != nil {
+		instructorsapi.HandlerFromMux(opts.Instructors, router)
 	}
 
 	return router

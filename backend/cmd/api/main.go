@@ -43,10 +43,17 @@ func main() {
 	profileRepo := postgres.NewProfileRepository(db)
 	profileService := profile.NewService(profileRepo, logger)
 	profileHandler := handlers.NewProfileHandler(profileService)
+	slotHandler := handlers.NewSlotHandler(postgres.NewSlotRepository(db))
+	instructorHandler := handlers.NewInstructorHandler(postgres.NewInstructorRepository(db))
 
 	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(logger, httpapi.RouterOptions{Auth: authHandler, Profile: profileHandler}),
+		Addr: cfg.HTTPAddr,
+		Handler: httpapi.NewRouter(logger, httpapi.RouterOptions{
+			Auth:        authHandler,
+			Profile:     profileHandler,
+			Slots:       slotHandler,
+			Instructors: instructorHandler,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
