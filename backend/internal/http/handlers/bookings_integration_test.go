@@ -143,6 +143,99 @@ func TestCreateBookingConcurrencyDoesNotOverbook(t *testing.T) {
 	}
 }
 
+func TestListAndGetBookings(t *testing.T) {
+	databaseURL := testutil.PrepareDatabase(t)
+
+	ctx := context.Background()
+	db, err := postgres.Connect(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("connect postgres: %v", err)
+	}
+	t.Cleanup(db.Close)
+
+	token := "booking-token"
+	clientID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	otherToken := "other-booking-token"
+	otherClientID := "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+	insertClientSession(t, ctx, db, clientID, "+79990003001", token)
+	insertClientSession(t, ctx, db, otherClientID, "+79990003002", otherToken)
+
+	activeID := "cccccccc-cccc-cccc-cccc-cccccccccccc"
+	cancelledID := "dddddddd-dddd-dddd-dddd-dddddddddddd"
+	otherID := "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+	if _, err := db.Exec(ctx, `
+INSERT INTO bookings (id, slot_id, client_id, seats_count, rental_count, status, created_at, cancelled_at)
+VALUES
+    ($1, '55555555-5555-5555-5555-555555555555', $2, 1, 0, 'active', now(), NULL),
+    ($3, '66666666-6666-6666-6666-666666666666', $2, 2, 1, 'cancelled', now(), now()),
+    ($4, '55555555-5555-5555-5555-555555555555', $5, 1, 0, 'active', now(), NULL)`, activeID, clientID, cancelledID, otherID, otherClientID); err != nil {
+		t.Fatalf("insert bookings: %v", err)
+	}
+
+	router := bookingRouter(db)
+
+	listRecorder := httptest.NewRecorder()
+	listReq := httptest.NewRequest(http.MethodGet, "/bookings?status=active&limit=1&offset=0", nil)
+	listReq.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(listRecorder, listReq)
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("list status = %d, body = %s", listRecorder.Code, listRecorder.Body.String())
+	}
+	var listResponse struct {
+		Items []struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		} `json:"items"`
+		Meta struct {
+			Limit int `json:"limit"`
+			Total int `json:"total"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(listRecorder.Body.Bytes(), &listResponse); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listResponse.Items) != 1 || listResponse.Items[0].ID != activeID || listResponse.Items[0].Status != "active" || listResponse.Meta.Total != 1 || listResponse.Meta.Limit != 1 {
+		t.Fatalf("unexpected list response: %+v", listResponse)
+	}
+
+	getRecorder := httptest.NewRecorder()
+	getReq := httptest.NewRequest(http.MethodGet, "/bookings/"+cancelledID, nil)
+	getReq.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(getRecorder, getReq)
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("get status = %d, body = %s", getRecorder.Code, getRecorder.Body.String())
+	}
+	var getResponse struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+		Slot   struct {
+			MeetingPoint string `json:"meeting_point"`
+		} `json:"slot"`
+	}
+	if err := json.Unmarshal(getRecorder.Body.Bytes(), &getResponse); err != nil {
+		t.Fatalf("decode get response: %v", err)
+	}
+	if getResponse.ID != cancelledID || getResponse.Status != "cancelled" || getResponse.Slot.MeetingPoint == "" {
+		t.Fatalf("unexpected get response: %+v", getResponse)
+	}
+
+	forbiddenRecorder := httptest.NewRecorder()
+	forbiddenReq := httptest.NewRequest(http.MethodGet, "/bookings/"+otherID, nil)
+	forbiddenReq.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(forbiddenRecorder, forbiddenReq)
+	if forbiddenRecorder.Code != http.StatusForbidden {
+		t.Fatalf("forbidden status = %d, want %d", forbiddenRecorder.Code, http.StatusForbidden)
+	}
+
+	notFoundRecorder := httptest.NewRecorder()
+	notFoundReq := httptest.NewRequest(http.MethodGet, "/bookings/00000000-0000-0000-0000-000000000000", nil)
+	notFoundReq.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(notFoundRecorder, notFoundReq)
+	if notFoundRecorder.Code != http.StatusNotFound {
+		t.Fatalf("not found status = %d, want %d", notFoundRecorder.Code, http.StatusNotFound)
+	}
+}
+
 func bookingRouter(db *pgxpool.Pool) http.Handler {
 	service := booking.NewService(postgres.NewBookingRepository(db))
 	return httpapi.NewRouter(slog.Default(), httpapi.RouterOptions{Bookings: handlers.NewBookingHandler(service)})

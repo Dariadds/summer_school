@@ -19,6 +19,8 @@ var (
 	ErrSlotCancelled       = errors.New("slot cancelled")
 	ErrSlotStarted         = errors.New("slot started")
 	ErrIdempotencyConflict = errors.New("idempotency conflict")
+	ErrNotFound            = errors.New("booking not found")
+	ErrForbidden           = errors.New("booking forbidden")
 )
 
 type Client struct {
@@ -34,6 +36,7 @@ type Booking struct {
 	Status      string
 	PriceTotal  int
 	CreatedAt   time.Time
+	CancelledAt *time.Time
 	Slot        Slot
 }
 
@@ -66,6 +69,18 @@ type CreateCommand struct {
 	RentalCount    int
 }
 
+type ListCommand struct {
+	Token  string
+	Status *string
+	Limit  int
+	Offset int
+}
+
+type BookingList struct {
+	Items []Booking
+	Total int
+}
+
 type Availability struct {
 	AvailableSeats        int
 	AvailableRentalBoards int
@@ -83,6 +98,8 @@ func (e AvailabilityError) Unwrap() error { return e.Err }
 type Repository interface {
 	ClientBySessionTokenHash(ctx context.Context, tokenHash string) (Client, bool, error)
 	Create(ctx context.Context, clientID string, command CreateCommand, requestHash string, now time.Time) (Booking, error)
+	List(ctx context.Context, clientID string, command ListCommand) (BookingList, error)
+	Get(ctx context.Context, clientID, bookingID string) (Booking, error)
 }
 
 type Service struct {
@@ -95,22 +112,52 @@ func NewService(repo Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, command CreateCommand) (Booking, error) {
-	if command.Token == "" {
-		return Booking{}, ErrUnauthorized
-	}
 	if command.SeatsCount < 1 || command.SeatsCount > 3 || command.RentalCount < 0 || command.RentalCount > command.SeatsCount || command.SlotID == "" {
 		return Booking{}, ErrInvalidRequest
 	}
 
-	client, ok, err := s.repo.ClientBySessionTokenHash(ctx, auth.HashToken(command.Token))
+	client, err := s.currentClient(ctx, command.Token)
 	if err != nil {
 		return Booking{}, err
 	}
-	if !ok {
-		return Booking{}, ErrUnauthorized
-	}
 
 	return s.repo.Create(ctx, client.ID, command, requestHash(command), s.now().UTC())
+}
+
+func (s *Service) List(ctx context.Context, command ListCommand) (BookingList, error) {
+	if command.Limit < 1 || command.Limit > 100 || command.Offset < 0 {
+		return BookingList{}, ErrInvalidRequest
+	}
+	client, err := s.currentClient(ctx, command.Token)
+	if err != nil {
+		return BookingList{}, err
+	}
+	return s.repo.List(ctx, client.ID, command)
+}
+
+func (s *Service) Get(ctx context.Context, token, bookingID string) (Booking, error) {
+	if bookingID == "" {
+		return Booking{}, ErrNotFound
+	}
+	client, err := s.currentClient(ctx, token)
+	if err != nil {
+		return Booking{}, err
+	}
+	return s.repo.Get(ctx, client.ID, bookingID)
+}
+
+func (s *Service) currentClient(ctx context.Context, token string) (Client, error) {
+	if token == "" {
+		return Client{}, ErrUnauthorized
+	}
+	client, ok, err := s.repo.ClientBySessionTokenHash(ctx, auth.HashToken(token))
+	if err != nil {
+		return Client{}, err
+	}
+	if !ok {
+		return Client{}, ErrUnauthorized
+	}
+	return client, nil
 }
 
 func requestHash(command CreateCommand) string {

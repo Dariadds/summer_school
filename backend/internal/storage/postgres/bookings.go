@@ -149,6 +149,66 @@ WHERE client_id = $1 AND key = $2 AND request_hash = $3`, clientID, command.Idem
 	return created, nil
 }
 
+func (r *BookingRepository) List(ctx context.Context, clientID string, command booking.ListCommand) (booking.BookingList, error) {
+	where := "WHERE b.client_id = $1"
+	args := []any{clientID}
+	if command.Status != nil {
+		where += " AND b.status = $2"
+		args = append(args, *command.Status)
+	}
+
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT count(*) FROM bookings b `+where, args...).Scan(&total); err != nil {
+		return booking.BookingList{}, fmt.Errorf("count bookings: %w", err)
+	}
+
+	queryArgs := append(args, command.Limit, command.Offset)
+	rows, err := r.db.Query(ctx, bookingSelectSQL()+`
+`+where+`
+ORDER BY s.start_at DESC, b.created_at DESC
+LIMIT $`+fmt.Sprint(len(args)+1)+` OFFSET $`+fmt.Sprint(len(args)+2), queryArgs...)
+	if err != nil {
+		return booking.BookingList{}, fmt.Errorf("query bookings: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]booking.Booking, 0)
+	for rows.Next() {
+		item, err := scanBooking(rows)
+		if err != nil {
+			return booking.BookingList{}, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return booking.BookingList{}, fmt.Errorf("iterate bookings: %w", err)
+	}
+	return booking.BookingList{Items: items, Total: total}, nil
+}
+
+func (r *BookingRepository) Get(ctx context.Context, clientID, bookingID string) (booking.Booking, error) {
+	var ownerID string
+	err := r.db.QueryRow(ctx, `SELECT client_id::text FROM bookings WHERE id = $1`, bookingID).Scan(&ownerID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return booking.Booking{}, booking.ErrNotFound
+	}
+	if err != nil {
+		return booking.Booking{}, fmt.Errorf("query booking owner: %w", err)
+	}
+	if ownerID != clientID {
+		return booking.Booking{}, booking.ErrForbidden
+	}
+
+	created, found, err := bookingByID(ctx, r.db, bookingID)
+	if err != nil {
+		return booking.Booking{}, err
+	}
+	if !found {
+		return booking.Booking{}, booking.ErrNotFound
+	}
+	return created, nil
+}
+
 type idempotencyRecord struct {
 	RequestHash string
 	BookingID   string
@@ -245,9 +305,26 @@ FOR UPDATE OF s`, slotID).Scan(
 	return slot, nil
 }
 
-func bookingByID(ctx context.Context, tx pgx.Tx, id string) (booking.Booking, bool, error) {
+type bookingQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func bookingByID(ctx context.Context, db bookingQuerier, id string) (booking.Booking, bool, error) {
 	var b booking.Booking
-	err := tx.QueryRow(ctx, `
+	err := db.QueryRow(ctx, bookingSelectSQL()+`
+WHERE b.id = $1`, id).Scan(bookingScanDest(&b)...)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return booking.Booking{}, false, nil
+	}
+	if err != nil {
+		return booking.Booking{}, false, fmt.Errorf("query booking by id: %w", err)
+	}
+	b.PriceTotal = b.Slot.Price*b.SeatsCount + b.Slot.RentalPrice*b.RentalCount
+	return b, true, nil
+}
+
+func bookingSelectSQL() string {
+	return `
 SELECT
     b.id::text,
     b.slot_id::text,
@@ -256,6 +333,7 @@ SELECT
     b.rental_count,
     b.status,
     b.created_at,
+    b.cancelled_at,
     s.id::text,
     r.id::text,
     r.name,
@@ -278,7 +356,24 @@ FROM bookings b
 JOIN slots s ON s.id = b.slot_id
 JOIN routes r ON r.id = s.route_id
 JOIN instructors i ON i.id = s.instructor_id
-WHERE b.id = $1`, id).Scan(
+`
+}
+
+type bookingScanner interface {
+	Scan(...any) error
+}
+
+func scanBooking(scanner bookingScanner) (booking.Booking, error) {
+	var b booking.Booking
+	if err := scanner.Scan(bookingScanDest(&b)...); err != nil {
+		return booking.Booking{}, fmt.Errorf("scan booking: %w", err)
+	}
+	b.PriceTotal = b.Slot.Price*b.SeatsCount + b.Slot.RentalPrice*b.RentalCount
+	return b, nil
+}
+
+func bookingScanDest(b *booking.Booking) []any {
+	return []any{
 		&b.ID,
 		&b.SlotID,
 		&b.ClientID,
@@ -286,6 +381,7 @@ WHERE b.id = $1`, id).Scan(
 		&b.RentalCount,
 		&b.Status,
 		&b.CreatedAt,
+		&b.CancelledAt,
 		&b.Slot.ID,
 		&b.Slot.RouteID,
 		&b.Slot.RouteName,
@@ -304,15 +400,7 @@ WHERE b.id = $1`, id).Scan(
 		&b.Slot.MeetingPointLat,
 		&b.Slot.MeetingPointLng,
 		&b.Slot.Status,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return booking.Booking{}, false, nil
 	}
-	if err != nil {
-		return booking.Booking{}, false, fmt.Errorf("query booking by id: %w", err)
-	}
-	b.PriceTotal = b.Slot.Price*b.SeatsCount + b.Slot.RentalPrice*b.RentalCount
-	return b, true, nil
 }
 
 func isUniqueViolation(err error) bool {

@@ -54,11 +54,53 @@ func (h *BookingHandler) CreateBooking(w http.ResponseWriter, r *http.Request, p
 }
 
 func (h *BookingHandler) ListBookings(w http.ResponseWriter, r *http.Request, params bookingsapi.ListBookingsParams) {
-	httpapi.WriteError(w, http.StatusNotImplemented, httpapi.CodeInternalError, "Метод ещё не реализован.", nil)
+	token, ok := bearerOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+	limit, offset, ok := pagination(w, params.Limit, params.Offset)
+	if !ok {
+		return
+	}
+	var status *string
+	if params.Status != nil {
+		value := string(*params.Status)
+		status = &value
+	}
+	list, err := h.service.List(r.Context(), booking.ListCommand{Token: token, Status: status, Limit: limit, Offset: offset})
+	if err != nil {
+		writeBookingError(w, err)
+		return
+	}
+
+	items := make([]bookingsapi.BookingSummary, 0, len(list.Items))
+	for _, item := range list.Items {
+		mapped, err := bookingSummaryDTO(item)
+		if err != nil {
+			httpapi.WriteError(w, http.StatusInternalServerError, httpapi.CodeInternalError, "Что-то пошло не так. Попробуйте ещё раз позже.", nil)
+			return
+		}
+		items = append(items, mapped)
+	}
+	httpapi.WriteJSON(w, http.StatusOK, bookingsapi.BookingListResponse{Items: items, Meta: bookingsapi.PaginationMeta{Limit: limit, Offset: offset, Total: list.Total}})
 }
 
 func (h *BookingHandler) GetBooking(w http.ResponseWriter, r *http.Request, bookingId bookingsapi.BookingIdParam) {
-	httpapi.WriteError(w, http.StatusNotImplemented, httpapi.CodeInternalError, "Метод ещё не реализован.", nil)
+	token, ok := bearerOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+	found, err := h.service.Get(r.Context(), token, bookingId.String())
+	if err != nil {
+		writeBookingError(w, err)
+		return
+	}
+	mapped, err := bookingDTO(found)
+	if err != nil {
+		httpapi.WriteError(w, http.StatusInternalServerError, httpapi.CodeInternalError, "Что-то пошло не так. Попробуйте ещё раз позже.", nil)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, mapped)
 }
 
 func (h *BookingHandler) CancelBooking(w http.ResponseWriter, r *http.Request, bookingId bookingsapi.BookingIdParam) {
@@ -76,6 +118,10 @@ func writeBookingError(w http.ResponseWriter, err error) {
 		httpapi.WriteError(w, http.StatusConflict, httpapi.CodeDoubleBooking, "Вы уже записаны на выбранный слот.", nil)
 	case errors.Is(err, booking.ErrIdempotencyConflict):
 		httpapi.WriteError(w, http.StatusConflict, httpapi.CodeIdempotencyConflict, "Ключ идемпотентности уже использован для другого запроса.", nil)
+	case errors.Is(err, booking.ErrForbidden):
+		httpapi.WriteError(w, http.StatusForbidden, httpapi.CodeForbidden, "Доступ запрещён. Вы не можете обращаться к данным другого клиента.", nil)
+	case errors.Is(err, booking.ErrNotFound):
+		httpapi.WriteError(w, http.StatusNotFound, httpapi.CodeNotFound, "Запрашиваемый ресурс не найден.", nil)
 	case errors.As(err, &availability) && errors.Is(err, booking.ErrSlotFull):
 		httpapi.WriteError(w, http.StatusConflict, httpapi.CodeSlotFull, "На выбранном слоте не осталось свободных мест.", availabilityDetails(availability.Availability))
 	case errors.As(err, &availability) && errors.Is(err, booking.ErrSlotCancelled):
@@ -121,6 +167,34 @@ func bookingDTO(value booking.Booking) (bookingsapi.Booking, error) {
 		Status:      bookingsapi.BookingStatus(value.Status),
 		PriceTotal:  &priceTotal,
 		CreatedAt:   value.CreatedAt,
+		CancelledAt: value.CancelledAt,
+		Slot:        &slot,
+	}, nil
+}
+
+func bookingSummaryDTO(value booking.Booking) (bookingsapi.BookingSummary, error) {
+	id, err := uuid.Parse(value.ID)
+	if err != nil {
+		return bookingsapi.BookingSummary{}, err
+	}
+	slotID, err := uuid.Parse(value.SlotID)
+	if err != nil {
+		return bookingsapi.BookingSummary{}, err
+	}
+	slot, err := bookingSlotSummaryDTO(value.Slot)
+	if err != nil {
+		return bookingsapi.BookingSummary{}, err
+	}
+	priceTotal := value.PriceTotal
+	return bookingsapi.BookingSummary{
+		Id:          id,
+		SlotId:      slotID,
+		SeatsCount:  value.SeatsCount,
+		RentalCount: value.RentalCount,
+		Status:      bookingsapi.BookingStatus(value.Status),
+		PriceTotal:  &priceTotal,
+		CreatedAt:   value.CreatedAt,
+		CancelledAt: value.CancelledAt,
 		Slot:        &slot,
 	}, nil
 }
@@ -152,5 +226,24 @@ func bookingSlotDTO(value booking.Slot) (bookingsapi.Slot, error) {
 		MeetingPointLat:  float32(value.MeetingPointLat),
 		MeetingPointLng:  float32(value.MeetingPointLng),
 		Status:           bookingsapi.SlotStatus(value.Status),
+	}, nil
+}
+
+func bookingSlotSummaryDTO(value booking.Slot) (bookingsapi.SlotSummary, error) {
+	slot, err := bookingSlotDTO(value)
+	if err != nil {
+		return bookingsapi.SlotSummary{}, err
+	}
+	return bookingsapi.SlotSummary{
+		Id:               slot.Id,
+		Route:            slot.Route,
+		Instructor:       slot.Instructor,
+		StartAt:          slot.StartAt,
+		TotalSeats:       slot.TotalSeats,
+		FreeSeats:        slot.FreeSeats,
+		FreeRentalBoards: slot.FreeRentalBoards,
+		Price:            slot.Price,
+		RentalPrice:      slot.RentalPrice,
+		Status:           slot.Status,
 	}, nil
 }
