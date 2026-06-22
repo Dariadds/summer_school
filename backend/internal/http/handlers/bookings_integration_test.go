@@ -87,6 +87,41 @@ func TestCreateBookingFlowAndIdempotency(t *testing.T) {
 	}
 }
 
+func TestCreateBookingIdempotencyConflict(t *testing.T) {
+	databaseURL := testutil.PrepareDatabase(t)
+
+	ctx := context.Background()
+	db, err := postgres.Connect(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("connect postgres: %v", err)
+	}
+	t.Cleanup(db.Close)
+
+	token := "booking-token"
+	clientID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	insertClientSession(t, ctx, db, clientID, "+79990001003", token)
+	router := bookingRouter(db)
+	idempotencyKey := "77777777-7777-7777-7777-777777777777"
+
+	first := performCreateBooking(router, token, idempotencyKey, `{"slot_id":"55555555-5555-5555-5555-555555555555","seats_count":1,"rental_count":0}`)
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first status = %d, body = %s", first.Code, first.Body.String())
+	}
+	second := performCreateBooking(router, token, idempotencyKey, `{"slot_id":"55555555-5555-5555-5555-555555555555","seats_count":2,"rental_count":0}`)
+	if second.Code != http.StatusConflict {
+		t.Fatalf("second status = %d, body = %s", second.Code, second.Body.String())
+	}
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(second.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode conflict response: %v", err)
+	}
+	if body.Code != httpapi.CodeIdempotencyConflict {
+		t.Fatalf("code = %q, want %q", body.Code, httpapi.CodeIdempotencyConflict)
+	}
+}
+
 func TestCreateBookingConcurrencyDoesNotOverbook(t *testing.T) {
 	databaseURL := testutil.PrepareDatabase(t)
 
