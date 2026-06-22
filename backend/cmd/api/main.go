@@ -12,6 +12,9 @@ import (
 
 	"summer-school-2026/backend/internal/config"
 	httpapi "summer-school-2026/backend/internal/http"
+	"summer-school-2026/backend/internal/http/handlers"
+	"summer-school-2026/backend/internal/service/auth"
+	"summer-school-2026/backend/internal/storage/postgres"
 )
 
 func main() {
@@ -23,14 +26,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(logger),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	db, err := postgres.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("failed to connect database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	authRepo := postgres.NewAuthRepository(db)
+	authService := auth.NewService(authRepo, logger)
+	authHandler := handlers.NewAuthHandler(authService)
+
+	server := &http.Server{
+		Addr:              cfg.HTTPAddr,
+		Handler:           httpapi.NewRouter(logger, httpapi.RouterOptions{Auth: authHandler}),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 
 	go func() {
 		logger.Info("api server started", "addr", cfg.HTTPAddr)

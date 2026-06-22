@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	authapi "summer-school-2026/backend/internal/http/openapi/auth"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -11,9 +13,17 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(logger *slog.Logger) http.Handler {
+type RouterOptions struct {
+	Auth authapi.ServerInterface
+}
+
+func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
 	if logger == nil {
 		logger = slog.Default()
+	}
+	var opts RouterOptions
+	if len(options) > 0 {
+		opts = options[0]
 	}
 
 	router := chi.NewRouter()
@@ -29,6 +39,9 @@ func NewRouter(logger *slog.Logger) http.Handler {
 	})
 	router.Get("/healthz", healthHandler)
 	router.Get("/readyz", healthHandler)
+	if opts.Auth != nil {
+		authapi.HandlerFromMux(opts.Auth, router)
+	}
 
 	return router
 }

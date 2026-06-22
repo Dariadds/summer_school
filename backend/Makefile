@@ -22,7 +22,7 @@ run:
 	go run ./cmd/api
 
 migrate:
-	@echo "migrations are not implemented yet"
+	go run github.com/pressly/goose/v3/cmd/goose@v3.24.1 -dir migrations postgres "$${DATABASE_URL:-postgres://volna:volna@localhost:5432/volna?sslmode=disable}" up
 
 k6-smoke:
 	@echo "k6 smoke test is not implemented yet"
