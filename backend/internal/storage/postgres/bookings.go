@@ -209,6 +209,81 @@ func (r *BookingRepository) Get(ctx context.Context, clientID, bookingID string)
 	return created, nil
 }
 
+func (r *BookingRepository) Cancel(ctx context.Context, clientID, bookingID string, now time.Time) (booking.Booking, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return booking.Booking{}, fmt.Errorf("begin cancel booking: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var locked struct {
+		OwnerID     string
+		SlotID      string
+		SeatsCount  int
+		RentalCount int
+		Status      string
+		StartAt     time.Time
+	}
+	err = tx.QueryRow(ctx, `
+SELECT b.client_id::text, b.slot_id::text, b.seats_count, b.rental_count, b.status, s.start_at
+FROM bookings b
+JOIN slots s ON s.id = b.slot_id
+WHERE b.id = $1
+FOR UPDATE OF b, s`, bookingID).Scan(
+		&locked.OwnerID,
+		&locked.SlotID,
+		&locked.SeatsCount,
+		&locked.RentalCount,
+		&locked.Status,
+		&locked.StartAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return booking.Booking{}, booking.ErrNotFound
+	}
+	if err != nil {
+		return booking.Booking{}, fmt.Errorf("lock booking for cancel: %w", err)
+	}
+	if locked.OwnerID != clientID {
+		return booking.Booking{}, booking.ErrForbidden
+	}
+	if locked.Status != "active" {
+		return booking.Booking{}, booking.ErrAlreadyCancelled
+	}
+
+	status, ok := booking.CancellationStatus(now, locked.StartAt)
+	if !ok {
+		return booking.Booking{}, booking.ErrSlotStarted
+	}
+
+	if _, err := tx.Exec(ctx, `
+UPDATE bookings
+SET status = $2, cancelled_at = $3
+WHERE id = $1`, bookingID, status, now); err != nil {
+		return booking.Booking{}, fmt.Errorf("update booking cancel status: %w", err)
+	}
+	if status == "cancelled" {
+		if _, err := tx.Exec(ctx, `
+UPDATE slots
+SET free_seats = free_seats + $2,
+    free_rental_boards = free_rental_boards + $3
+WHERE id = $1`, locked.SlotID, locked.SeatsCount, locked.RentalCount); err != nil {
+			return booking.Booking{}, fmt.Errorf("return slot availability: %w", err)
+		}
+	}
+
+	cancelled, found, err := bookingByID(ctx, tx, bookingID)
+	if err != nil {
+		return booking.Booking{}, err
+	}
+	if !found {
+		return booking.Booking{}, booking.ErrNotFound
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return booking.Booking{}, fmt.Errorf("commit cancel booking: %w", err)
+	}
+	return cancelled, nil
+}
+
 type idempotencyRecord struct {
 	RequestHash string
 	BookingID   string

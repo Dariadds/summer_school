@@ -21,6 +21,7 @@ var (
 	ErrIdempotencyConflict = errors.New("idempotency conflict")
 	ErrNotFound            = errors.New("booking not found")
 	ErrForbidden           = errors.New("booking forbidden")
+	ErrAlreadyCancelled    = errors.New("booking already cancelled")
 )
 
 type Client struct {
@@ -100,6 +101,7 @@ type Repository interface {
 	Create(ctx context.Context, clientID string, command CreateCommand, requestHash string, now time.Time) (Booking, error)
 	List(ctx context.Context, clientID string, command ListCommand) (BookingList, error)
 	Get(ctx context.Context, clientID, bookingID string) (Booking, error)
+	Cancel(ctx context.Context, clientID, bookingID string, now time.Time) (Booking, error)
 }
 
 type Service struct {
@@ -146,6 +148,17 @@ func (s *Service) Get(ctx context.Context, token, bookingID string) (Booking, er
 	return s.repo.Get(ctx, client.ID, bookingID)
 }
 
+func (s *Service) Cancel(ctx context.Context, token, bookingID string) (Booking, error) {
+	if bookingID == "" {
+		return Booking{}, ErrNotFound
+	}
+	client, err := s.currentClient(ctx, token)
+	if err != nil {
+		return Booking{}, err
+	}
+	return s.repo.Cancel(ctx, client.ID, bookingID, s.now().UTC())
+}
+
 func (s *Service) currentClient(ctx context.Context, token string) (Client, error) {
 	if token == "" {
 		return Client{}, ErrUnauthorized
@@ -163,4 +176,14 @@ func (s *Service) currentClient(ctx context.Context, token string) (Client, erro
 func requestHash(command CreateCommand) string {
 	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%d|%d", command.SlotID, command.SeatsCount, command.RentalCount)))
 	return base64.RawStdEncoding.EncodeToString(sum[:])
+}
+
+func CancellationStatus(now, startAt time.Time) (string, bool) {
+	if !now.Before(startAt) {
+		return "", false
+	}
+	if startAt.Sub(now) >= 2*time.Hour {
+		return "cancelled", true
+	}
+	return "late_cancel", true
 }

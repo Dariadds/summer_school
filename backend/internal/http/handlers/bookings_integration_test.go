@@ -236,6 +236,140 @@ VALUES
 	}
 }
 
+func TestCancelBookingEarlyLateAndAfterStart(t *testing.T) {
+	databaseURL := testutil.PrepareDatabase(t)
+
+	ctx := context.Background()
+	db, err := postgres.Connect(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("connect postgres: %v", err)
+	}
+	t.Cleanup(db.Close)
+
+	token := "cancel-token"
+	clientID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	insertClientSession(t, ctx, db, clientID, "+79990004001", token)
+	router := bookingRouter(db)
+
+	earlyID := "cccccccc-cccc-cccc-cccc-cccccccccccc"
+	if _, err := db.Exec(ctx, `UPDATE slots SET free_seats = 6, free_rental_boards = 11 WHERE id = '55555555-5555-5555-5555-555555555555'`); err != nil {
+		t.Fatalf("update early slot: %v", err)
+	}
+	insertBooking(t, ctx, db, earlyID, "55555555-5555-5555-5555-555555555555", clientID, 2, 1)
+	earlyRecorder := performCancelBooking(router, token, earlyID)
+	if earlyRecorder.Code != http.StatusOK {
+		t.Fatalf("early cancel status = %d, body = %s", earlyRecorder.Code, earlyRecorder.Body.String())
+	}
+	var earlyResponse struct {
+		Status string `json:"status"`
+		Slot   struct {
+			FreeSeats        int `json:"free_seats"`
+			FreeRentalBoards int `json:"free_rental_boards"`
+		} `json:"slot"`
+	}
+	if err := json.Unmarshal(earlyRecorder.Body.Bytes(), &earlyResponse); err != nil {
+		t.Fatalf("decode early response: %v", err)
+	}
+	if earlyResponse.Status != "cancelled" || earlyResponse.Slot.FreeSeats != 8 || earlyResponse.Slot.FreeRentalBoards != 12 {
+		t.Fatalf("unexpected early response: %+v", earlyResponse)
+	}
+	repeatRecorder := performCancelBooking(router, token, earlyID)
+	if repeatRecorder.Code != http.StatusConflict {
+		t.Fatalf("repeat cancel status = %d, want %d", repeatRecorder.Code, http.StatusConflict)
+	}
+
+	lateID := "dddddddd-dddd-dddd-dddd-dddddddddddd"
+	if _, err := db.Exec(ctx, `UPDATE slots SET start_at = $1, free_seats = 10, free_rental_boards = 9 WHERE id = '66666666-6666-6666-6666-666666666666'`, time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("update late slot: %v", err)
+	}
+	insertBooking(t, ctx, db, lateID, "66666666-6666-6666-6666-666666666666", clientID, 2, 1)
+	lateRecorder := performCancelBooking(router, token, lateID)
+	if lateRecorder.Code != http.StatusOK {
+		t.Fatalf("late cancel status = %d, body = %s", lateRecorder.Code, lateRecorder.Body.String())
+	}
+	var lateResponse struct {
+		Status string `json:"status"`
+		Slot   struct {
+			FreeSeats        int `json:"free_seats"`
+			FreeRentalBoards int `json:"free_rental_boards"`
+		} `json:"slot"`
+	}
+	if err := json.Unmarshal(lateRecorder.Body.Bytes(), &lateResponse); err != nil {
+		t.Fatalf("decode late response: %v", err)
+	}
+	if lateResponse.Status != "late_cancel" || lateResponse.Slot.FreeSeats != 10 || lateResponse.Slot.FreeRentalBoards != 9 {
+		t.Fatalf("unexpected late response: %+v", lateResponse)
+	}
+
+	afterStartID := "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+	if _, err := db.Exec(ctx, `UPDATE slots SET start_at = $1 WHERE id = '55555555-5555-5555-5555-555555555555'`, time.Now().Add(-time.Minute)); err != nil {
+		t.Fatalf("update past slot: %v", err)
+	}
+	insertBooking(t, ctx, db, afterStartID, "55555555-5555-5555-5555-555555555555", clientID, 1, 0)
+	afterStartRecorder := performCancelBooking(router, token, afterStartID)
+	if afterStartRecorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("after start cancel status = %d, want %d", afterStartRecorder.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestCancelBookingConcurrencyReturnsAvailabilityOnce(t *testing.T) {
+	databaseURL := testutil.PrepareDatabase(t)
+
+	ctx := context.Background()
+	db, err := postgres.Connect(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("connect postgres: %v", err)
+	}
+	t.Cleanup(db.Close)
+
+	token := "cancel-token"
+	clientID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	bookingID := "cccccccc-cccc-cccc-cccc-cccccccccccc"
+	insertClientSession(t, ctx, db, clientID, "+79990005001", token)
+	if _, err := db.Exec(ctx, `UPDATE slots SET free_seats = 6, free_rental_boards = 11 WHERE id = '55555555-5555-5555-5555-555555555555'`); err != nil {
+		t.Fatalf("update slot: %v", err)
+	}
+	insertBooking(t, ctx, db, bookingID, "55555555-5555-5555-5555-555555555555", clientID, 2, 1)
+	router := bookingRouter(db)
+
+	const requests = 5
+	var wg sync.WaitGroup
+	statuses := make(chan int, requests)
+	for i := 0; i < requests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			statuses <- performCancelBooking(router, token, bookingID).Code
+		}()
+	}
+	wg.Wait()
+	close(statuses)
+
+	successes := 0
+	conflicts := 0
+	for status := range statuses {
+		switch status {
+		case http.StatusOK:
+			successes++
+		case http.StatusConflict:
+			conflicts++
+		default:
+			t.Fatalf("unexpected cancel status = %d", status)
+		}
+	}
+	if successes != 1 || conflicts != requests-1 {
+		t.Fatalf("successes=%d conflicts=%d", successes, conflicts)
+	}
+
+	var freeSeats, freeBoards int
+	if err := db.QueryRow(ctx, `SELECT free_seats, free_rental_boards FROM slots WHERE id = '55555555-5555-5555-5555-555555555555'`).Scan(&freeSeats, &freeBoards); err != nil {
+		t.Fatalf("read availability: %v", err)
+	}
+	if freeSeats != 8 || freeBoards != 12 {
+		t.Fatalf("availability seats=%d boards=%d, want 8/12", freeSeats, freeBoards)
+	}
+}
+
 func bookingRouter(db *pgxpool.Pool) http.Handler {
 	service := booking.NewService(postgres.NewBookingRepository(db))
 	return httpapi.NewRouter(slog.Default(), httpapi.RouterOptions{Bookings: handlers.NewBookingHandler(service)})
@@ -258,4 +392,21 @@ func performCreateBooking(router http.Handler, token, idempotencyKey, body strin
 	req.Header.Set("Idempotency-Key", idempotencyKey)
 	router.ServeHTTP(recorder, req)
 	return recorder
+}
+
+func performCancelBooking(router http.Handler, token, bookingID string) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/bookings/"+bookingID+"/cancel", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func insertBooking(t *testing.T, ctx context.Context, db *pgxpool.Pool, bookingID, slotID, clientID string, seatsCount, rentalCount int) {
+	t.Helper()
+	if _, err := db.Exec(ctx, `
+INSERT INTO bookings (id, slot_id, client_id, seats_count, rental_count, status, created_at)
+VALUES ($1, $2, $3, $4, $5, 'active', now())`, bookingID, slotID, clientID, seatsCount, rentalCount); err != nil {
+		t.Fatalf("insert booking: %v", err)
+	}
 }

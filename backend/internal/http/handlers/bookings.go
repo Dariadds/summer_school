@@ -104,7 +104,21 @@ func (h *BookingHandler) GetBooking(w http.ResponseWriter, r *http.Request, book
 }
 
 func (h *BookingHandler) CancelBooking(w http.ResponseWriter, r *http.Request, bookingId bookingsapi.BookingIdParam) {
-	httpapi.WriteError(w, http.StatusNotImplemented, httpapi.CodeInternalError, "Метод ещё не реализован.", nil)
+	token, ok := bearerOrUnauthorized(w, r)
+	if !ok {
+		return
+	}
+	cancelled, err := h.service.Cancel(r.Context(), token, bookingId.String())
+	if err != nil {
+		writeBookingError(w, err)
+		return
+	}
+	mapped, err := bookingDTO(cancelled)
+	if err != nil {
+		httpapi.WriteError(w, http.StatusInternalServerError, httpapi.CodeInternalError, "Что-то пошло не так. Попробуйте ещё раз позже.", nil)
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusOK, mapped)
 }
 
 func writeBookingError(w http.ResponseWriter, err error) {
@@ -118,6 +132,8 @@ func writeBookingError(w http.ResponseWriter, err error) {
 		httpapi.WriteError(w, http.StatusConflict, httpapi.CodeDoubleBooking, "Вы уже записаны на выбранный слот.", nil)
 	case errors.Is(err, booking.ErrIdempotencyConflict):
 		httpapi.WriteError(w, http.StatusConflict, httpapi.CodeIdempotencyConflict, "Ключ идемпотентности уже использован для другого запроса.", nil)
+	case errors.Is(err, booking.ErrAlreadyCancelled):
+		httpapi.WriteError(w, http.StatusConflict, httpapi.CodeAlreadyCancelled, "Бронь уже отменена.", nil)
 	case errors.Is(err, booking.ErrForbidden):
 		httpapi.WriteError(w, http.StatusForbidden, httpapi.CodeForbidden, "Доступ запрещён. Вы не можете обращаться к данным другого клиента.", nil)
 	case errors.Is(err, booking.ErrNotFound):
