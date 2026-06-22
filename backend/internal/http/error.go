@@ -8,19 +8,20 @@ import (
 )
 
 const (
-	CodeBadRequest       = "bad_request"
-	CodeUnauthorized     = "unauthorized"
-	CodeForbidden        = "forbidden"
-	CodeNotFound         = "not_found"
-	CodeSlotFull         = "slot_full"
-	CodeDoubleBooking    = "double_booking"
-	CodeSlotCancelled    = "slot_cancelled"
-	CodeSlotStarted      = "slot_started"
-	CodeAlreadyCancelled = "already_cancelled"
-	CodeInvalidCode      = "invalid_code"
-	CodePhoneConflict    = "phone_conflict"
-	CodeTooManyRequests  = "too_many_requests"
-	CodeInternalError    = "internal_error"
+	CodeBadRequest          = "bad_request"
+	CodeUnauthorized        = "unauthorized"
+	CodeForbidden           = "forbidden"
+	CodeNotFound            = "not_found"
+	CodeSlotFull            = "slot_full"
+	CodeDoubleBooking       = "double_booking"
+	CodeSlotCancelled       = "slot_cancelled"
+	CodeSlotStarted         = "slot_started"
+	CodeAlreadyCancelled    = "already_cancelled"
+	CodeInvalidCode         = "invalid_code"
+	CodeIdempotencyConflict = "idempotency_conflict"
+	CodePhoneConflict       = "phone_conflict"
+	CodeTooManyRequests     = "too_many_requests"
+	CodeInternalError       = "internal_error"
 )
 
 var ErrUnauthorized = errors.New("unauthorized")
