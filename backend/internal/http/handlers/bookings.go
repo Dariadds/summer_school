@@ -65,6 +65,10 @@ func (h *BookingHandler) ListBookings(w http.ResponseWriter, r *http.Request, pa
 	var status *string
 	if params.Status != nil {
 		value := string(*params.Status)
+		if value != string(bookingsapi.BookingStatusActive) && value != string(bookingsapi.BookingStatusCancelled) && value != string(bookingsapi.BookingStatusLateCancel) {
+			httpapi.WriteError(w, http.StatusBadRequest, httpapi.CodeBadRequest, "Неверные параметры запроса. Проверьте корректность переданных значений.", nil)
+			return
+		}
 		status = &value
 	}
 	list, err := h.service.List(r.Context(), booking.ListCommand{Token: token, Status: status, Limit: limit, Offset: offset})

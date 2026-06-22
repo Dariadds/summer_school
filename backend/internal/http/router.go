@@ -48,19 +48,19 @@ func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
 	router.Get("/healthz", healthHandler)
 	router.Get("/readyz", healthHandler)
 	if opts.Auth != nil {
-		authapi.HandlerFromMux(opts.Auth, router)
+		authapi.HandlerWithOptions(opts.Auth, authapi.ChiServerOptions{BaseRouter: router, ErrorHandlerFunc: OpenAPIErrorHandler})
 	}
 	if opts.Profile != nil {
-		profileapi.HandlerFromMux(opts.Profile, router)
+		profileapi.HandlerWithOptions(opts.Profile, profileapi.ChiServerOptions{BaseRouter: router, ErrorHandlerFunc: OpenAPIErrorHandler})
 	}
 	if opts.Bookings != nil {
-		bookingsapi.HandlerFromMux(opts.Bookings, router)
+		bookingsapi.HandlerWithOptions(opts.Bookings, bookingsapi.ChiServerOptions{BaseRouter: router, ErrorHandlerFunc: OpenAPIErrorHandler})
 	}
 	if opts.Slots != nil {
-		slotsapi.HandlerFromMux(opts.Slots, router)
+		slotsapi.HandlerWithOptions(opts.Slots, slotsapi.ChiServerOptions{BaseRouter: router, ErrorHandlerFunc: OpenAPIErrorHandler})
 	}
 	if opts.Instructors != nil {
-		instructorsapi.HandlerFromMux(opts.Instructors, router)
+		instructorsapi.HandlerWithOptions(opts.Instructors, instructorsapi.ChiServerOptions{BaseRouter: router, ErrorHandlerFunc: OpenAPIErrorHandler})
 	}
 
 	return router

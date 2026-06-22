@@ -28,7 +28,13 @@ func (h *SlotHandler) ListSlots(w http.ResponseWriter, r *http.Request, params s
 	filters.DateFrom = params.DateFrom
 	filters.DateTo = params.DateTo
 	if params.RouteType != nil {
-		filters.RouteTypes = append(filters.RouteTypes, *params.RouteType...)
+		for _, routeType := range *params.RouteType {
+			if routeType != string(slotsapi.RouteTypeNovice) && routeType != string(slotsapi.RouteTypeExperienced) {
+				httpapi.WriteError(w, http.StatusBadRequest, httpapi.CodeBadRequest, "Неверные параметры запроса. Проверьте корректность переданных значений.", nil)
+				return
+			}
+			filters.RouteTypes = append(filters.RouteTypes, routeType)
+		}
 	}
 	if params.InstructorId != nil {
 		for _, id := range *params.InstructorId {
