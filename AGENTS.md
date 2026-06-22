@@ -19,6 +19,37 @@
 - FE target stack: Kotlin Compose Multiplatform with Android, iOS, and Web targets.
 - Do not introduce a different primary BE/FE stack unless the user explicitly asks.
 
+## Backend Architecture Baseline
+- Use a classic layered Go REST API architecture: HTTP transport -> application/use cases -> domain -> repositories/infrastructure.
+- Keep the backend in a dedicated Go module, preferably under `backend/`, unless the user requests another layout.
+- Use `cmd/api/main.go` only for composition: load config, initialize logger, database, repositories, services/use cases, HTTP router, middleware, and graceful shutdown.
+- Put non-public application code under `internal/`; do not expose reusable packages unless there is a real external consumer.
+- Recommended package layout:
+  - `internal/config`: environment/config parsing and validation.
+  - `internal/http`: router, middleware, request/response mapping, error mapping, generated OpenAPI handlers if used.
+  - `internal/http/handlers`: thin HTTP handlers/controllers; no business rules here.
+  - `internal/app` or `internal/usecase`: application services/use cases that orchestrate domain rules, repositories, transactions, idempotency, and external services.
+  - `internal/domain`: entities, value objects, domain errors, and pure business rules; no database, HTTP, framework, or logging dependencies.
+  - `internal/repository`: repository interfaces owned by use cases/domain needs, plus persistence implementations when the project is small.
+  - `internal/storage/postgres`: SQL queries, migrations integration, transaction helpers, row locking, and PostgreSQL-specific code if persistence grows beyond simple repositories.
+  - `internal/auth`: OTP/session/JWT/token logic and current-user context helpers.
+  - `internal/clock`: injectable time source for booking/cancellation boundary tests.
+  - `internal/observability`: structured logging, request IDs, metrics, tracing, health/readiness checks.
+  - `migrations`: database schema migrations.
+  - `tests` or package-local `*_test.go`: integration and contract tests where needed.
+- Dependency direction must point inward: HTTP depends on use cases, use cases depend on domain abstractions/repository interfaces, infrastructure implements interfaces. Domain must not import HTTP, SQL drivers, generated API types, or framework packages.
+- HTTP handlers must stay thin: validate/parse transport-level input, call one use case, convert result/errors to OpenAPI-compatible responses.
+- Keep OpenAPI operationIds and schemas aligned with `01-analysis/api`; generated types are acceptable at the transport boundary, but do not leak them into domain models.
+- Use explicit DTO mapping between OpenAPI/generated models, application commands/results, and domain entities.
+- Put business invariants in use cases/domain, not in handlers or SQL alone. SQL constraints and transactions should protect the same invariants at persistence level.
+- Booking and cancellation flows must run inside explicit database transactions and use row-level locking or equivalent concurrency control to prevent double booking, overbooking, and incorrect board inventory updates.
+- Implement idempotent `createBooking` handling with persisted idempotency keys bound to the authenticated client and request payload semantics.
+- Prefer context-aware methods (`context.Context`) for all request-scoped operations, repository calls, and external integrations.
+- Use structured errors: domain/application errors should be typed or comparable and mapped once at the HTTP boundary to the documented API error responses.
+- Do not use global mutable state for config, logger, database, clock, or services; pass dependencies through constructors.
+- Prefer standard library plus small, established libraries. Avoid heavy frameworks unless explicitly justified.
+- Tests should cover domain rules with unit tests, use cases with mocked/fake repositories where useful, and booking/cancel concurrency with integration tests against PostgreSQL or an equivalent test container.
+
 ## API Docs Commands
 - API docs are the only npm project: run commands with `npm --prefix 01-analysis/api ...` from the repo root, or from `01-analysis/api` directly.
 - First-time setup needs `npm --prefix 01-analysis/api install`; there is no lockfile and `package-lock.json` is intentionally ignored.
