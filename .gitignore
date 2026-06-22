@@ -1,1 +1,6 @@
 .claude
+01-analysis/api/dist/
+01-analysis/api/node_modules/
+01-analysis/api/package-lock.json
+backend/bin/
+backend/.env
