@@ -7,7 +7,7 @@
 - [x] [BE-02. Реализовать общую HTTP-инфраструктуру](#be-02-реализовать-общую-http-инфраструктуру)
 - [x] [BE-03. Спроектировать БД и миграции](#be-03-спроектировать-бд-и-миграции)
 - [x] [BE-04. Реализовать Auth: OTP и сессии](#be-04-реализовать-auth-otp-и-сессии)
-- [ ] [BE-05. Реализовать Profile](#be-05-реализовать-profile)
+- [x] [BE-05. Реализовать Profile](#be-05-реализовать-profile)
 - [ ] [BE-06. Реализовать read-only каталог слотов и инструкторов](#be-06-реализовать-read-only-каталог-слотов-и-инструкторов)
 - [ ] [BE-07. Реализовать атомарное создание брони](#be-07-реализовать-атомарное-создание-брони)
 - [ ] [BE-08. Реализовать список и детали броней](#be-08-реализовать-список-и-детали-броней)
@@ -187,7 +187,7 @@
 ### BE-10. Довести контрактные ошибки и валидацию
 
 Сделать:
-- Зафиксировать machine codes: `bad_request`, `unauthorized`, `forbidden`, `not_found`, `slot_full`, `double_booking`, `slot_cancelled`, `slot_started`, `already_cancelled`, `invalid_code`, `too_many_requests`, `internal_error`.
+- Зафиксировать machine codes: `bad_request`, `unauthorized`, `forbidden`, `not_found`, `slot_full`, `double_booking`, `slot_cancelled`, `slot_started`, `already_cancelled`, `invalid_code`, `phone_conflict`, `too_many_requests`, `internal_error`.
 - Проверить, что все handlers возвращают `application/json` и тело `Error` для ошибок.
 - Добавить request validation для всех path/query/body параметров из OpenAPI.
 

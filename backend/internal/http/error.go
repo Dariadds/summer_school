@@ -18,6 +18,7 @@ const (
 	CodeSlotStarted      = "slot_started"
 	CodeAlreadyCancelled = "already_cancelled"
 	CodeInvalidCode      = "invalid_code"
+	CodePhoneConflict    = "phone_conflict"
 	CodeTooManyRequests  = "too_many_requests"
 	CodeInternalError    = "internal_error"
 )

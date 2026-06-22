@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	authapi "summer-school-2026/backend/internal/http/openapi/auth"
+	profileapi "summer-school-2026/backend/internal/http/openapi/profile"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -14,7 +15,8 @@ type healthResponse struct {
 }
 
 type RouterOptions struct {
-	Auth authapi.ServerInterface
+	Auth    authapi.ServerInterface
+	Profile profileapi.ServerInterface
 }
 
 func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
@@ -41,6 +43,9 @@ func NewRouter(logger *slog.Logger, options ...RouterOptions) http.Handler {
 	router.Get("/readyz", healthHandler)
 	if opts.Auth != nil {
 		authapi.HandlerFromMux(opts.Auth, router)
+	}
+	if opts.Profile != nil {
+		profileapi.HandlerFromMux(opts.Profile, router)
 	}
 
 	return router

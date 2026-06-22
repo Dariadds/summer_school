@@ -14,6 +14,7 @@ import (
 	httpapi "summer-school-2026/backend/internal/http"
 	"summer-school-2026/backend/internal/http/handlers"
 	"summer-school-2026/backend/internal/service/auth"
+	"summer-school-2026/backend/internal/service/profile"
 	"summer-school-2026/backend/internal/storage/postgres"
 )
 
@@ -39,10 +40,13 @@ func main() {
 	authRepo := postgres.NewAuthRepository(db)
 	authService := auth.NewService(authRepo, logger)
 	authHandler := handlers.NewAuthHandler(authService)
+	profileRepo := postgres.NewProfileRepository(db)
+	profileService := profile.NewService(profileRepo, logger)
+	profileHandler := handlers.NewProfileHandler(profileService)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(logger, httpapi.RouterOptions{Auth: authHandler}),
+		Handler:           httpapi.NewRouter(logger, httpapi.RouterOptions{Auth: authHandler, Profile: profileHandler}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
