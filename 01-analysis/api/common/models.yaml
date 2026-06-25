@@ -136,6 +136,7 @@ components:
             - active
             - cancelled
             - late_cancel
+            - club_cancelled
 
     DateFromParam:
       in: query

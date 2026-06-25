@@ -34,6 +34,7 @@ components:
         - type
         - capacity_cap
         - duration_min
+        - geometry
       properties:
         id:
           type: string

@@ -29,6 +29,10 @@ components:
         Цены (R-010): price — тариф за место, rental_price — отдельный тариф проката
         за доску, оба в рублях (валюта RUB). Итоговая цена брони производная =
         price·seats_count + rental_price·rental_count.
+
+
+        Инварианты: free_seats ≤ total_seats; счётчики (free_seats, free_rental_boards,
+        total_seats) и цены (price, rental_price) неотрицательны.
       required:
         - id
         - start_at
@@ -58,16 +62,19 @@ components:
           $ref: '../instructors/models.yaml#/components/schemas/Instructor'
         total_seats:
           type: integer
+          minimum: 1
           description: Общее число мест в слоте.
           example: 8
         free_seats:
           type: integer
+          minimum: 0
           description: >-
             Число свободных мест (расчётное). Своя доска клиента тоже занимает место.
             К брони доступно max_seats = min(free_seats, route.capacity_cap, 3), R-003.
           example: 5
         free_rental_boards:
           type: integer
+          minimum: 0
           description: >-
             Число свободных прокатных досок из общего фонда (расчётное). Ограничивает
             rental_count в брони (rental_count ≤ free_rental_boards). Своя доска фонд
@@ -75,10 +82,12 @@ components:
           example: 7
         price:
           type: integer
+          minimum: 0
           description: Цена за одно место, в рублях (целое число, валюта RUB).
           example: 2500
         rental_price:
           type: integer
+          minimum: 0
           description: Тариф проката за одну доску, в рублях (целое число, валюта RUB).
           example: 800
         meeting_point:
@@ -127,24 +136,29 @@ components:
           $ref: '../instructors/models.yaml#/components/schemas/Instructor'
         price:
           type: integer
+          minimum: 0
           description: Цена за одно место, в рублях (целое число, валюта RUB).
           example: 2500
         rental_price:
           type: integer
+          minimum: 0
           description: Тариф проката за одну доску, в рублях (целое число, валюта RUB).
           example: 800
         total_seats:
           type: integer
+          minimum: 1
           description: Общее число мест в слоте.
           example: 8
         free_seats:
           type: integer
+          minimum: 0
           description: >-
             Число свободных мест (расчётное). Своя доска клиента тоже занимает место.
             К брони доступно max_seats = min(free_seats, route.capacity_cap, 3), R-003.
           example: 5
         free_rental_boards:
           type: integer
+          minimum: 0
           description: >-
             Число свободных прокатных досок из общего фонда (расчётное). Ограничивает
             rental_count в брони (rental_count ≤ free_rental_boards). Своя доска фонд

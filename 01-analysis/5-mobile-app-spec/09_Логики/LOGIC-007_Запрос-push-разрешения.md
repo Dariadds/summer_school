@@ -154,7 +154,7 @@ flowchart TD
 (`POST /auth/push-tokens`, тело `{ token, platform }`, R-006). Повторная регистрация того же
 токена идемпотентна. Дальнейшую доставку напоминаний (за `reminder_hours` часов до старта) и
 уведомлений об отмене обеспечивает инфраструктура. При выходе из аккаунта или отвязке устройства
-токен снимается запросом `deletePushToken` (`DELETE /auth/push-tokens/{token}`).
+токен снимается запросом `deletePushToken` (`DELETE /auth/push-tokens`, тело `{ token, platform }`).
 
 ### Шаг 5: Обработка отказа
 
@@ -228,11 +228,18 @@ push-токен не регистрируется (`registerPushToken` не вы
 
 ### deletePushToken
 
-**Тип:** REST · **Метод:** DELETE · **Спецификация:** [`../../api/auth/api.yaml`](../../api/auth/api.yaml) → `deletePushToken` (`DELETE /auth/push-tokens/{token}`)
+**Тип:** REST · **Метод:** DELETE · **Спецификация:** [`../../api/auth/api.yaml`](../../api/auth/api.yaml) → `deletePushToken` (`DELETE /auth/push-tokens`)
 
 **Триггер:** выход из аккаунта / отвязка устройства / отключение уведомлений.
 
 **Headers:** `Authorization: Bearer <access_token>`.
+
+**Параметры (request body):**
+
+| Параметр | Тип | Описание | Значение/Источник |
+|----------|-----|----------|-------------------|
+| `token` | string | Push-токен устройства, который снимается | Системный API уведомлений (APNs / FCM) |
+| `platform` | string (`ios` / `android`) | Платформа устройства | Состояние приложения |
 
 | Результат | Действие |
 |-----------|----------|

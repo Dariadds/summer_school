@@ -37,7 +37,7 @@ sequenceDiagram
         API-->>App: 201 Booking {id, status: active,<br/>price_total, created_at, slot}
         App-->>User: BS-002 «Запись оформлена» + сводка<br/>(после первой записи — запрос push)
     else Нет свободных мест/досок или двойная бронь (409 Conflict)
-        API-->>App: 409 {code: slot_full / double_booking,<br/>free_seats, free_rental_boards}
+        API-->>App: 409 {code: slot_full / double_booking,<br/>available_seats, available_rental_boards}
         App-->>User: Сообщение о нехватке мест/досок,<br/>обновление доступности слота
     else Слот отменён клубом (410 Gone)
         API-->>App: 410 {code: slot_cancelled}
@@ -59,7 +59,7 @@ sequenceDiagram
 | Запрос | `POST /bookings` с `Idempotency-Key`; тело — `CreateBookingRequest` | bookings/api.yaml |
 | Проверка | Сервер атомарно проверяет места/прокатные доски и фиксирует цену слота | NFR-8/9, R-010 |
 | `201` | Возвращается `Booking` со `status=active` и `price_total` (read-only) | R-005 |
-| `409` | Нет мест/досок или двойная бронь; тело несёт `free_seats`/`free_rental_boards` | common/models.yaml |
+| `409` | Нет мест/досок или двойная бронь; тело несёт `available_seats`/`available_rental_boards` (Error.details) | common/models.yaml |
 | `410` | Слот отменён клубом (`slot_cancelled`) | R-008 |
 | Повтор | Сетевой сбой → повтор с тем же `Idempotency-Key` исключает дубль | NFR-9, R-020 |
 

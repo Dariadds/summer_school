@@ -95,6 +95,26 @@ components:
             - android
           example: ios
 
+    PushTokenDeleteRequest:
+      type: object
+      description: >-
+        Снятие регистрации push-токена устройства (R-006). Токен передаётся в теле,
+        а не в URL, чтобы не записывать сырое значение токена в логи/историю URL.
+      required:
+        - token
+        - platform
+      properties:
+        token:
+          type: string
+          description: Токен push-уведомлений, выданный платформой (APNs/FCM).
+        platform:
+          type: string
+          description: Платформа устройства.
+          enum:
+            - ios
+            - android
+          example: ios
+
     VerifyCodeRequest:
       type: object
       description: >-

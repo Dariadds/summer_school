@@ -184,8 +184,6 @@ paths:
           $ref: "../common/models.yaml#/components/responses/Unauthorized"
         default:
           $ref: "../common/models.yaml#/components/responses/InternalError"
-
-  /auth/push-tokens/{token}:
     delete:
       tags:
         - Auth
@@ -193,14 +191,14 @@ paths:
       operationId: deletePushToken
       description: >-
         Снимает регистрацию push-токена устройства (например, при выходе или
-        отключении уведомлений), R-006.
-      parameters:
-        - name: token
-          in: path
-          required: true
-          description: Значение push-токена устройства.
-          schema:
-            type: string
+        отключении уведомлений), R-006. Токен передаётся в теле запроса, а не в
+        пути URL, чтобы сырое значение токена не попадало в логи/историю URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "models.yaml#/components/schemas/PushTokenDeleteRequest"
       responses:
         "204":
           description: Push-токен удалён (идемпотентно, если уже отсутствовал)
