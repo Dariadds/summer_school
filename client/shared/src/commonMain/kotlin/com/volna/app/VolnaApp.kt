@@ -75,6 +75,7 @@ import com.volna.app.core.time.AppClock
 import com.volna.app.core.time.SystemAppClock
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.BookingId
+import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
@@ -318,6 +319,10 @@ private fun MainTabs(
                         onIntent = onBookingFormIntent,
                         onBack = { slotsRoute = SlotsRoute.Details(route.slot.id) },
                         onDone = {
+                            onBookingFormIntent(BookingFormIntent.SuccessDismissed)
+                            slotsRoute = SlotsRoute.List
+                        },
+                        onOpenBookings = {
                             onBookingFormIntent(BookingFormIntent.SuccessDismissed)
                             slotsRoute = SlotsRoute.List
                             bookingsRoute = BookingsRoute.List
@@ -793,6 +798,7 @@ private fun BookingFormScreen(
     onIntent: (BookingFormIntent) -> Unit,
     onBack: () -> Unit,
     onDone: () -> Unit,
+    onOpenBookings: () -> Unit,
 ) {
     LaunchedEffect(slot.id) {
         onIntent(BookingFormIntent.Open(slot))
@@ -803,8 +809,15 @@ private fun BookingFormScreen(
         BookingFormContent(
             state = state,
             onIntent = onIntent,
-            onDone = onDone,
         )
+        state.createdBooking?.let { booking ->
+            BookingSuccessSheet(
+                booking = booking,
+                fallbackPrice = state.totalPrice?.value ?: 0,
+                onDone = onDone,
+                onOpenBookings = onOpenBookings,
+            )
+        }
     }
 }
 
@@ -812,7 +825,6 @@ private fun BookingFormScreen(
 private fun BookingFormContent(
     state: BookingFormState,
     onIntent: (BookingFormIntent) -> Unit,
-    onDone: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -869,29 +881,72 @@ private fun BookingFormContent(
         ) {
             Text(if (state.isSubmitting) "Записываем..." else "Записаться")
         }
-        state.createdBooking?.let { booking ->
-            Column(
+        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight))
+    }
+}
+
+@Composable
+private fun BookingSuccessSheet(
+    booking: Booking,
+    fallbackPrice: Int,
+    onDone: () -> Unit,
+    onOpenBookings: () -> Unit,
+) {
+    // CMP-15 / BS-002: successful createBooking summary; no network requests on open.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+            .clickable { onDone() },
+        contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
+    ) {
+        Column(
+            modifier = Modifier
+                .width(VolnaTheme.tokens.sizing.contentWidth)
+                .clickable {}
+                .shadow(
+                    elevation = VolnaTheme.tokens.spacing.sm,
+                    shape = RoundedCornerShape(
+                        topStart = VolnaTheme.tokens.radius.lg,
+                        topEnd = VolnaTheme.tokens.radius.lg,
+                    ),
+                )
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(
+                        topStart = VolnaTheme.tokens.radius.lg,
+                        topEnd = VolnaTheme.tokens.radius.lg,
+                    ),
+                )
+                .padding(VolnaTheme.tokens.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        ) {
+            Text("Запись создана", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            booking.slot?.let { slot ->
+                Text(slot.route.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(slot.startAt.toUiText(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Инструктор: ${slot.instructor.name}")
+            }
+            Text("Мест: ${booking.seatsCount}")
+            Text("Прокатных досок: ${booking.rentalCount}")
+            Text("Своя доска: ${(booking.seatsCount - booking.rentalCount).coerceAtLeast(0)}")
+            Text("${booking.priceTotal?.value ?: fallbackPrice} ₽", style = MaterialTheme.typography.headlineSmall)
+            Text("Оплата на месте перед прогулкой", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(
+                onClick = onOpenBookings,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        color = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
-                    )
-                    .padding(VolnaTheme.tokens.spacing.md),
-                verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+                    .height(VolnaTheme.tokens.sizing.buttonHeight),
             ) {
-                Text("Запись создана", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Мест: ${booking.seatsCount}, прокатных досок: ${booking.rentalCount}")
-                Text("${booking.priceTotal?.value ?: state.totalPrice?.value ?: 0} ₽")
-                Button(
-                    onClick = onDone,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("К моим записям")
-                }
+                Text("Мои записи")
+            }
+            OutlinedButton(
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Готово")
             }
         }
-        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight))
     }
 }
 
