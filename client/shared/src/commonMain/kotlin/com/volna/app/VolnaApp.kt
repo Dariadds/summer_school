@@ -39,6 +39,7 @@ import com.volna.app.auth.presentation.AuthStore
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.network.VolnaApiClient
 import com.volna.app.core.storage.PlatformSessionStorage
+import com.volna.app.profile.data.KtorProfileRepository
 
 private enum class MainTab(val title: String) {
     Slots("Прогулки"),
@@ -59,7 +60,8 @@ fun VolnaApp() {
         val sessionRepository = remember { DefaultSessionRepository(PlatformSessionStorage) }
         val apiClient = remember { VolnaApiClient(sessionRepository) }
         val authRepository = remember { KtorAuthRepository(apiClient, sessionRepository) }
-        val authStore = remember { AuthStore(authRepository, appScope) }
+        val profileRepository = remember { KtorProfileRepository(apiClient, sessionRepository) }
+        val authStore = remember { AuthStore(authRepository, profileRepository, appScope) }
         val authState by authStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
 

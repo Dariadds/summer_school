@@ -8,6 +8,7 @@ import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.domain.model.Client
 import com.volna.app.domain.model.Phone
+import com.volna.app.profile.ProfileRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -64,6 +65,7 @@ sealed interface AuthEffect {
 
 class AuthStore(
     private val authRepository: AuthRepository,
+    private val profileRepository: ProfileRepository,
     private val scope: CoroutineScope,
 ) : MviStore<AuthState, AuthIntent, AuthEffect> {
     private val mutableState = MutableStateFlow(AuthState())
@@ -233,10 +235,47 @@ class AuthStore(
             mutableState.update { it.copy(fieldError = "Укажите, как к вам обращаться") }
             return
         }
+        if (mutableState.value.isSubmitting) return
+
+        scope.launch {
+            mutableState.update { it.copy(actionStatus = ActionStatus.Submitting, fieldError = null, message = null) }
+            val result = profileRepository.updateName(name)
+            result.fold(
+                onSuccess = { client ->
+                    mutableState.update {
+                        it.copy(
+                            client = client,
+                            actionStatus = ActionStatus.Idle,
+                            fieldError = null,
+                            message = null,
+                        )
+                    }
+                    effects.send(AuthEffect.Authenticated)
+                },
+                onFailure = { failure ->
+                    val appFailure = failure.asAppFailure()
+                    if (appFailure == AppFailure.Unauthorized) {
+                        resetToPhoneAfterUnauthorized()
+                    } else {
+                        mutableState.update {
+                            it.copy(
+                                actionStatus = ActionStatus.Idle,
+                                fieldError = nameStepFieldError(appFailure),
+                                message = nameStepMessage(appFailure),
+                            )
+                        }
+                    }
+                },
+            )
+        }
+    }
+
+    private fun resetToPhoneAfterUnauthorized() {
+        resendTimer?.cancel()
         mutableState.update {
-            it.copy(
-                message = "Имя будет сохранено через updateProfile в следующем срезе",
-                fieldError = null,
+            AuthState(
+                phoneInput = it.phoneInput,
+                message = "Сессия истекла, войдите снова",
             )
         }
     }
@@ -267,11 +306,25 @@ class AuthStore(
         else -> "Произошла ошибка. Попробуйте позже"
     }
 
+    private fun nameStepFieldError(failure: AppFailure): String? = when {
+        failure.isBadRequest() -> "Проверьте имя — кажется, тут лишние символы"
+        else -> null
+    }
+
+    private fun nameStepMessage(failure: AppFailure): String? = when {
+        failure.isBadRequest() -> null
+        failure == AppFailure.NetworkUnavailable -> "Не удалось загрузить. Проверьте соединение и попробуйте снова"
+        else -> "Произошла ошибка. Попробуйте позже"
+    }
+
     private fun AppFailure.isInvalidCode(): Boolean =
         this is AppFailure.Api && code == ApiErrorCode.InvalidCode
 
     private fun AppFailure.isTooManyRequests(): Boolean =
         this is AppFailure.Api && code == ApiErrorCode.TooManyRequests
+
+    private fun AppFailure.isBadRequest(): Boolean =
+        this is AppFailure.Api && code == ApiErrorCode.BadRequest
 
     private companion object {
         const val DEFAULT_RESEND_SECONDS = 60
