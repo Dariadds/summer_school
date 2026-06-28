@@ -1,5 +1,7 @@
 package com.volna.app.domain.model
 
+import kotlin.jvm.JvmInline
+
 @JvmInline
 value class ClientId(val value: String)
 

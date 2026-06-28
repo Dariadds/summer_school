@@ -9,11 +9,12 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.contentType
+import io.ktor.client.request.header
 import io.ktor.client.request.request
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.TimeoutCancellationException
@@ -32,7 +33,7 @@ class VolnaApiClient(
         crossinline block: HttpRequestBuilder.() -> Unit = {},
     ): Result<T> = runCatching {
         val response = httpClient.request(baseUrl + path) {
-            contentType(ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
             if (authorized) {
                 sessionRepository.token()?.let { bearerAuth(it) }
             }
@@ -50,7 +51,7 @@ class VolnaApiClient(
         block: HttpRequestBuilder.() -> Unit = {},
     ): Result<Unit> = runCatching {
         val response = httpClient.request(baseUrl + path) {
-            contentType(ContentType.Application.Json)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
             if (authorized) {
                 sessionRepository.token()?.let { bearerAuth(it) }
             }

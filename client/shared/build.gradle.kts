@@ -6,8 +6,13 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+@OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
 kotlin {
-    androidTarget()
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
 
     iosX64()
     iosArm64()
@@ -59,5 +64,10 @@ android {
 
     defaultConfig {
         minSdk = libs.versions.android.min.sdk.get().toInt()
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }

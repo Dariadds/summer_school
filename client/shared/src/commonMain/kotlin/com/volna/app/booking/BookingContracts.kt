@@ -6,6 +6,7 @@ import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.BookingDraft
 import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.BookingStatus
+import kotlin.jvm.JvmInline
 
 @JvmInline
 value class IdempotencyKey(val value: String)

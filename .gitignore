@@ -8,3 +8,6 @@ backend/.env
 client/.gradle/
 client/build/
 client/**/build/
+client/local.properties
+client/kotlin-js-store/
+client/java_pid*.hprof

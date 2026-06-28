@@ -1,6 +1,7 @@
 package com.volna.app.domain.model
 
 import kotlinx.datetime.Instant
+import kotlin.jvm.JvmInline
 
 @JvmInline
 value class Phone(val value: String) {

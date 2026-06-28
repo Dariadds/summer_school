@@ -4,9 +4,10 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+@OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
 kotlin {
     wasmJs {
-        moduleName = "volna-web"
+        outputModuleName.set("volna-web")
         browser {
             commonWebpackConfig {
                 outputFileName = "volna-web.js"
