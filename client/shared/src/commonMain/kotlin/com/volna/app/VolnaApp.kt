@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,6 +57,7 @@ import com.volna.app.auth.presentation.AuthEffect
 import com.volna.app.auth.presentation.AuthIntent
 import com.volna.app.auth.presentation.AuthScreen
 import com.volna.app.auth.presentation.AuthStore
+import com.volna.app.catalog.data.KtorInstructorRepository
 import com.volna.app.catalog.data.KtorSlotRepository
 import com.volna.app.catalog.presentation.SlotDetailsEffect
 import com.volna.app.catalog.presentation.SlotDetailsIntent
@@ -65,6 +67,7 @@ import com.volna.app.catalog.presentation.SlotListEffect
 import com.volna.app.catalog.presentation.SlotListIntent
 import com.volna.app.catalog.presentation.SlotListState
 import com.volna.app.catalog.presentation.SlotListStore
+import com.volna.app.catalog.presentation.SlotDatePreset
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.network.VolnaApiClient
 import com.volna.app.core.storage.PlatformSessionStorage
@@ -72,6 +75,7 @@ import com.volna.app.core.time.AppClock
 import com.volna.app.core.time.SystemAppClock
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.BookingId
+import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.RouteType
@@ -119,11 +123,12 @@ fun VolnaApp() {
         val authRepository = remember { KtorAuthRepository(apiClient, sessionRepository) }
         val profileRepository = remember { KtorProfileRepository(apiClient, sessionRepository) }
         val slotRepository = remember { KtorSlotRepository(apiClient) }
+        val instructorRepository = remember { KtorInstructorRepository(apiClient) }
         val bookingRepository = remember { KtorBookingRepository(apiClient) }
         val idempotencyKeyFactory = remember { RandomIdempotencyKeyFactory() }
         val authStore = remember { AuthStore(authRepository, profileRepository, appScope) }
         val profileStore = remember { ProfileStore(profileRepository, authRepository, appScope) }
-        val slotListStore = remember { SlotListStore(slotRepository, appScope) }
+        val slotListStore = remember { SlotListStore(slotRepository, instructorRepository, appScope) }
         val slotDetailsStore = remember { SlotDetailsStore(slotRepository, appScope) }
         val bookingFormStore = remember {
             BookingFormStore(bookingRepository, idempotencyKeyFactory, appScope)
@@ -377,7 +382,8 @@ private fun SlotListScreen(
         text = "≡",
         modifier = Modifier
             .offset(x = VolnaTheme.tokens.sizing.filterIconX, y = VolnaTheme.tokens.sizing.topTitleY)
-            .size(VolnaTheme.tokens.spacing.xl),
+            .size(VolnaTheme.tokens.spacing.xl)
+            .clickable { onIntent(SlotListIntent.OpenFilters) },
         textAlign = TextAlign.Center,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.Bold,
@@ -389,16 +395,207 @@ private fun SlotListScreen(
             SkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
         }
         is Loadable.Content -> SlotCards(slots.value, onSlotClick)
-        is Loadable.Empty -> StateMessage(
-            title = "Пока нет доступных прогулок",
-            description = "Загляните позже",
-        )
+        is Loadable.Empty -> if (slots.reason == com.volna.app.core.ui.EmptyReason.NoSlotsByFilters) {
+            StateMessage(
+                title = "Нет слотов по условиям",
+                description = "Попробуйте изменить фильтры",
+                buttonText = "Фильтры",
+                onClick = { onIntent(SlotListIntent.OpenFilters) },
+            )
+        } else {
+            StateMessage(
+                title = "Пока нет доступных прогулок",
+                description = "Загляните позже",
+            )
+        }
         is Loadable.Error -> StateMessage(
             title = "Не удалось загрузить",
             description = "Проверьте соединение и попробуйте снова",
             buttonText = "Повторить",
             onClick = { onIntent(SlotListIntent.Retry) },
         )
+    }
+    if (state.filtersVisible) {
+        SlotFiltersSheet(
+            state = state,
+            onIntent = onIntent,
+        )
+    }
+}
+
+@Composable
+private fun SlotFiltersSheet(
+    state: SlotListState,
+    onIntent: (SlotListIntent) -> Unit,
+) {
+    // CMP-13 / BS-001: filter form only collects conditions; SCR-002 reloads after apply.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+            .clickable { onIntent(SlotListIntent.CloseFilters) },
+        contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
+    ) {
+        Column(
+            modifier = Modifier
+                .width(VolnaTheme.tokens.sizing.contentWidth)
+                .clickable {}
+                .shadow(
+                    elevation = VolnaTheme.tokens.spacing.sm,
+                    shape = RoundedCornerShape(
+                        topStart = VolnaTheme.tokens.radius.lg,
+                        topEnd = VolnaTheme.tokens.radius.lg,
+                    ),
+                )
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(
+                        topStart = VolnaTheme.tokens.radius.lg,
+                        topEnd = VolnaTheme.tokens.radius.lg,
+                    ),
+                )
+                .padding(VolnaTheme.tokens.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text("Фильтры", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+                    Text(
+                        text = "Сбросить",
+                        modifier = Modifier.clickable { onIntent(SlotListIntent.ResetFilters) },
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = "×",
+                        modifier = Modifier
+                            .size(VolnaTheme.tokens.spacing.lg)
+                            .clickable { onIntent(SlotListIntent.CloseFilters) },
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                }
+            }
+
+            FilterGroup(title = "Дата старта") {
+                FilterChipRow {
+                    FilterChipButton("Любая", state.draftDatePreset == SlotDatePreset.Any) {
+                        onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.Any))
+                    }
+                    FilterChipButton("Сегодня", state.draftDatePreset == SlotDatePreset.Today) {
+                        onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.Today))
+                    }
+                    FilterChipButton("7 дней", state.draftDatePreset == SlotDatePreset.NextSevenDays) {
+                        onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.NextSevenDays))
+                    }
+                }
+            }
+
+            FilterGroup(title = "Тип маршрута") {
+                FilterChipRow {
+                    FilterChipButton("Новичковый", RouteType.Novice in state.draftFilters.routeTypes) {
+                        onIntent(SlotListIntent.ToggleRouteType(RouteType.Novice))
+                    }
+                    FilterChipButton("Опытный", RouteType.Experienced in state.draftFilters.routeTypes) {
+                        onIntent(SlotListIntent.ToggleRouteType(RouteType.Experienced))
+                    }
+                }
+            }
+
+            FilterChipButton(
+                label = if (state.draftFilters.onlyAvailable) "✓ Только со свободными местами" else "Только со свободными местами",
+                selected = state.draftFilters.onlyAvailable,
+                onClick = { onIntent(SlotListIntent.ToggleOnlyAvailable) },
+            )
+
+            InstructorFilterSection(
+                instructors = state.instructors,
+                selected = state.draftFilters.instructorIds,
+                onToggle = { onIntent(SlotListIntent.ToggleInstructor(it.id)) },
+                onRetry = { onIntent(SlotListIntent.RetryInstructors) },
+            )
+
+            Button(
+                onClick = { onIntent(SlotListIntent.ApplyFilters) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(VolnaTheme.tokens.sizing.buttonHeight),
+            ) {
+                Text("Применить")
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterGroup(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+        Text(title, fontWeight = FontWeight.Bold)
+        content()
+    }
+}
+
+@Composable
+private fun FilterChipRow(content: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+        content = { content() },
+    )
+}
+
+@Composable
+private fun FilterChipButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val text = if (selected && !label.startsWith("✓")) "✓ $label" else label
+    OutlinedButton(onClick = onClick) {
+        Text(text)
+    }
+}
+
+@Composable
+private fun InstructorFilterSection(
+    instructors: Loadable<List<Instructor>>,
+    selected: Set<com.volna.app.domain.model.InstructorId>,
+    onToggle: (Instructor) -> Unit,
+    onRetry: () -> Unit,
+) {
+    when (instructors) {
+        Loadable.Initial,
+        Loadable.Loading -> FilterGroup("Инструктор") {
+            Text("Загружаем инструкторов", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        is Loadable.Empty -> Unit
+        is Loadable.Error -> FilterGroup("Инструктор") {
+            Text("Не удалось загрузить инструкторов", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = onRetry) {
+                Text("Обновить")
+            }
+        }
+        is Loadable.Content -> FilterGroup("Инструктор") {
+            Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+                instructors.value.chunked(2).forEach { row ->
+                    FilterChipRow {
+                        row.forEach { instructor ->
+                            FilterChipButton(
+                                label = instructor.name,
+                                selected = instructor.id in selected,
+                                onClick = { onToggle(instructor) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
