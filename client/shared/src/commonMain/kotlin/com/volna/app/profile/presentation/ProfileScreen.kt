@@ -1,12 +1,21 @@
 package com.volna.app.profile.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -17,8 +26,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.core.ui.Loadable
@@ -43,30 +54,47 @@ fun ProfileScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(VolnaTheme.tokens.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.TopCenter,
     ) {
-        Text(
-            text = "Профиль",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        when (val profile = state.profile) {
-            Loadable.Initial,
-            Loadable.Loading -> CircularProgressIndicator()
-            is Loadable.Content -> ProfileContent(
-                state = state,
-                clientName = profile.value.name.orEmpty(),
-                phone = profile.value.phone.value,
-                onIntent = onIntent,
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = VolnaTheme.tokens.sizing.screenMaxWidth),
+        ) {
+            Text(
+                text = "Профиль",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = VolnaTheme.tokens.sizing.topTitleY),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
             )
-            is Loadable.Error -> ProfileError(onRetry = { onIntent(ProfileIntent.Load) })
-            is Loadable.Empty -> ProfileError(onRetry = { onIntent(ProfileIntent.Load) })
+            when (val profile = state.profile) {
+                Loadable.Initial,
+                Loadable.Loading -> CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                )
+                is Loadable.Content -> ProfileContent(
+                    state = state,
+                    clientName = profile.value.name.orEmpty(),
+                    phone = profile.value.phone.value,
+                    onIntent = onIntent,
+                )
+                is Loadable.Error -> ProfileError(onRetry = { onIntent(ProfileIntent.Load) })
+                is Loadable.Empty -> ProfileError(onRetry = { onIntent(ProfileIntent.Load) })
+            }
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(VolnaTheme.tokens.spacing.md),
+            )
         }
-        SnackbarHost(snackbarHostState)
     }
 
     if (state.logoutConfirmVisible) {
@@ -84,23 +112,84 @@ private fun ProfileContent(
     phone: String,
     onIntent: (ProfileIntent) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm)) {
-        Text(
-            text = clientName.ifBlank { "Имя не указано" },
-            style = MaterialTheme.typography.titleLarge,
-        )
-        Text(
-            text = phone,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedButton(
-            onClick = { onIntent(ProfileIntent.LogoutClicked) },
-            enabled = state.actionStatus == ActionStatus.Idle,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(if (state.isSubmitting) "Выходим..." else "Выйти")
+    Column(
+        modifier = Modifier
+            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .offset(
+                x = VolnaTheme.tokens.spacing.md,
+                y = VolnaTheme.tokens.sizing.profileInfoY,
+            ),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        ProfileInfoRow(label = "Имя", value = clientName.ifBlank { "Имя не указано" })
+        ProfileInfoRow(label = "Телефон", value = phone)
+    }
+    Column(
+        modifier = Modifier
+            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .offset(
+                x = VolnaTheme.tokens.spacing.md,
+                y = VolnaTheme.tokens.sizing.profileLinksY,
+            ),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        InfoLine("Правила клуба", "›")
+        InfoLine("Поддержка", "›")
+        InfoLine("Версия приложения", "1.0.0")
+    }
+    OutlinedButton(
+        onClick = { onIntent(ProfileIntent.LogoutClicked) },
+        enabled = state.actionStatus == ActionStatus.Idle,
+        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary,
+        ),
+        modifier = Modifier
+            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .height(VolnaTheme.tokens.sizing.buttonHeight)
+            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.profileLogoutY),
+    ) {
+        Text(if (state.isSubmitting) "Выходим..." else "Выйти", fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun ProfileInfoRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+            )
+            .padding(horizontal = VolnaTheme.tokens.spacing.md),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.bodyLarge)
         }
+        Text("✎", style = MaterialTheme.typography.titleLarge)
+    }
+}
+
+@Composable
+private fun InfoLine(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -108,8 +197,17 @@ private fun ProfileContent(
 private fun ProfileError(
     onRetry: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm)) {
-        Text("Не удалось загрузить профиль")
+    Column(
+        modifier = Modifier
+            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .offset(
+                x = VolnaTheme.tokens.spacing.md,
+                y = VolnaTheme.tokens.sizing.stateMessageY,
+            ),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Не удалось загрузить профиль", textAlign = TextAlign.Center)
         Button(onClick = onRetry) {
             Text("Повторить")
         }

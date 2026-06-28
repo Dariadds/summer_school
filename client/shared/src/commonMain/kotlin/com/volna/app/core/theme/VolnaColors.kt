@@ -19,14 +19,14 @@ data class VolnaColorScheme(
 )
 
 val VolnaLightColors = VolnaColorScheme(
-    brand = Color(0xFF0B6E78),
+    brand = Color(0xFF00A8A8),
     onBrand = Color.White,
-    background = Color(0xFFF7FAFA),
+    background = Color.White,
     surface = Color.White,
-    surfaceVariant = Color(0xFFE7F1F2),
-    textPrimary = Color(0xFF152022),
-    textSecondary = Color(0xFF5B6A6D),
-    border = Color(0xFFD3DEE0),
+    surfaceVariant = Color(0xFFF1F1F1),
+    textPrimary = Color(0xFF171717),
+    textSecondary = Color(0xFF858585),
+    border = Color(0xFFE5E5E5),
     success = Color(0xFF237A4B),
     warning = Color(0xFF9A6400),
     error = Color(0xFFB3261E),
