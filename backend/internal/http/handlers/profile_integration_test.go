@@ -130,6 +130,47 @@ func TestProfilePhoneConflict(t *testing.T) {
 	}
 }
 
+func TestProfilePhoneRequestCodeReturnsDemoCode(t *testing.T) {
+	databaseURL := testutil.PrepareDatabase(t)
+
+	ctx := context.Background()
+	db, err := postgres.Connect(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("connect postgres: %v", err)
+	}
+	t.Cleanup(db.Close)
+
+	token := "profile-token"
+	clientID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	if _, err := db.Exec(ctx, `INSERT INTO clients (id, phone) VALUES ($1, $2)`, clientID, "+79990000001"); err != nil {
+		t.Fatalf("insert client: %v", err)
+	}
+	if _, err := db.Exec(ctx, `INSERT INTO auth_sessions (client_id, token_hash, expires_at) VALUES ($1, $2, $3)`, clientID, auth.HashToken(token), time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("insert session: %v", err)
+	}
+
+	profileRepo := postgres.NewProfileRepository(db)
+	profileService := profile.NewService(profileRepo, slog.Default())
+	router := httpapi.NewRouter(slog.Default(), httpapi.RouterOptions{Profile: handlers.NewProfileHandler(profileService)})
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/profile/phone/request-code", bytes.NewBufferString(`{"new_phone":"+79990000003"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(response.Code) != 6 {
+		t.Fatalf("code = %q, want 6 digits", response.Code)
+	}
+}
+
 func TestProfileRequiresToken(t *testing.T) {
 	router := httpapi.NewRouter(slog.Default(), httpapi.RouterOptions{Profile: handlers.NewProfileHandler(profile.NewService(nil, slog.Default()))})
 

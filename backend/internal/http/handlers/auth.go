@@ -48,6 +48,7 @@ func (h *AuthHandler) RequestAuthCode(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusOK, authapi.RequestCodeResponse{
 		TtlSeconds:         result.TTLSeconds,
 		ResendAfterSeconds: result.ResendAfterSeconds,
+		Code:               &result.Code,
 	})
 }
 

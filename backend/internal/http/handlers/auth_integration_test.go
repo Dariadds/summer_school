@@ -67,3 +67,35 @@ func TestAuthVerifyAndLogoutFlow(t *testing.T) {
 		t.Fatalf("logout status = %d, body = %s", logoutRecorder.Code, logoutRecorder.Body.String())
 	}
 }
+
+func TestAuthRequestCodeReturnsDemoCode(t *testing.T) {
+	databaseURL := testutil.PrepareDatabase(t)
+
+	ctx := context.Background()
+	db, err := postgres.Connect(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("connect postgres: %v", err)
+	}
+	t.Cleanup(db.Close)
+
+	service := auth.NewService(postgres.NewAuthRepository(db), slog.Default())
+	router := httpapi.NewRouter(slog.Default(), httpapi.RouterOptions{Auth: handlers.NewAuthHandler(service)})
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/auth/request-code", bytes.NewBufferString(`{"phone":"+79991234567"}`)))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("request code status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	var response struct {
+		Code               string `json:"code"`
+		TTLSeconds         int    `json:"ttl_seconds"`
+		ResendAfterSeconds int    `json:"resend_after_seconds"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode request code response: %v", err)
+	}
+	if len(response.Code) != 6 || response.TTLSeconds != 300 || response.ResendAfterSeconds != 60 {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+}

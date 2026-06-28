@@ -34,6 +34,7 @@ type Client struct {
 type RequestCodeResult struct {
 	TTLSeconds         int
 	ResendAfterSeconds int
+	Code               string
 }
 
 type VerifyCodeResult struct {
@@ -110,7 +111,7 @@ func (s *Service) RequestCode(ctx context.Context, phone string) (RequestCodeRes
 	}
 
 	s.logger.Info("dev otp generated", "phone", phone, "purpose", loginPurpose, "code", code)
-	return RequestCodeResult{TTLSeconds: int(s.codeTTL.Seconds()), ResendAfterSeconds: int(s.resendAfter.Seconds())}, nil
+	return RequestCodeResult{TTLSeconds: int(s.codeTTL.Seconds()), ResendAfterSeconds: int(s.resendAfter.Seconds()), Code: code}, nil
 }
 
 func (s *Service) VerifyCode(ctx context.Context, phone, code string) (VerifyCodeResult, error) {

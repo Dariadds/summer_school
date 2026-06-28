@@ -77,7 +77,7 @@ func (h *ProfileHandler) RequestPhoneChangeCode(w http.ResponseWriter, r *http.R
 		writeProfileError(w, err)
 		return
 	}
-	httpapi.WriteJSON(w, http.StatusOK, profileapi.RequestCodeResponse{TtlSeconds: result.TTLSeconds, ResendAfterSeconds: result.ResendAfterSeconds})
+	httpapi.WriteJSON(w, http.StatusOK, profileapi.RequestCodeResponse{TtlSeconds: result.TTLSeconds, ResendAfterSeconds: result.ResendAfterSeconds, Code: &result.Code})
 }
 
 func (h *ProfileHandler) ConfirmPhoneChange(w http.ResponseWriter, r *http.Request) {

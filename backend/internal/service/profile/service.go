@@ -32,6 +32,7 @@ type Client = auth.Client
 type RequestPhoneCodeResult struct {
 	TTLSeconds         int
 	ResendAfterSeconds int
+	Code               string
 }
 
 type Repository interface {
@@ -130,7 +131,7 @@ func (s *Service) RequestPhoneChangeCode(ctx context.Context, token, newPhone st
 	}
 	s.logger.Info("dev otp generated", "phone", newPhone, "purpose", phoneChangePurpose, "code", code)
 
-	return RequestPhoneCodeResult{TTLSeconds: int(s.codeTTL.Seconds()), ResendAfterSeconds: int(s.resendAfter.Seconds())}, nil
+	return RequestPhoneCodeResult{TTLSeconds: int(s.codeTTL.Seconds()), ResendAfterSeconds: int(s.resendAfter.Seconds()), Code: code}, nil
 }
 
 func (s *Service) ConfirmPhoneChange(ctx context.Context, token, newPhone, code string) (Client, error) {

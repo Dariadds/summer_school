@@ -24,7 +24,7 @@ components:
 
     RequestCodeResponse:
       type: object
-      description: Ответ на запрос OTP-кода.
+      description: Ответ на запрос OTP-кода. В демонстрационной backend-реализации code возвращается в ответе вместо отправки через SMS-провайдера.
       required:
         - ttl_seconds
         - resend_after_seconds
@@ -37,6 +37,11 @@ components:
           type: integer
           description: Через сколько секунд можно запросить повторную отправку.
           example: 60
+        code:
+          type: string
+          description: OTP-код для демонстрационной реализации без SMS-провайдера. В production должен отправляться через провайдера и не возвращаться клиенту.
+          pattern: '^\d{4,6}$'
+          example: '123456'
 
     VerifyCodeRequest:
       type: object
