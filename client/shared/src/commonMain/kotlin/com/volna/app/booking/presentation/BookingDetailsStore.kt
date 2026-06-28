@@ -23,6 +23,7 @@ data class BookingDetailsState(
     val booking: Loadable<Booking> = Loadable.Initial,
     val cancelStatus: ActionStatus = ActionStatus.Idle,
     val showCancelConfirm: Boolean = false,
+    val showRouteMap: Boolean = false,
     val message: String? = null,
 ) {
     val currentBooking: Booking?
@@ -36,6 +37,8 @@ sealed interface BookingDetailsIntent {
     data object AskCancel : BookingDetailsIntent
     data object DismissCancel : BookingDetailsIntent
     data object ConfirmCancel : BookingDetailsIntent
+    data object OpenRouteMap : BookingDetailsIntent
+    data object DismissRouteMap : BookingDetailsIntent
     data object MessageShown : BookingDetailsIntent
     data object Reset : BookingDetailsIntent
 }
@@ -66,6 +69,8 @@ class BookingDetailsStore(
             }
             BookingDetailsIntent.DismissCancel -> mutableState.update { it.copy(showCancelConfirm = false) }
             BookingDetailsIntent.ConfirmCancel -> cancel()
+            BookingDetailsIntent.OpenRouteMap -> mutableState.update { it.copy(showRouteMap = true) }
+            BookingDetailsIntent.DismissRouteMap -> mutableState.update { it.copy(showRouteMap = false) }
             BookingDetailsIntent.MessageShown -> mutableState.update { it.copy(message = null) }
             BookingDetailsIntent.Reset -> {
                 lastBookingId = null
@@ -85,6 +90,7 @@ class BookingDetailsStore(
                 it.copy(
                     booking = Loadable.Loading,
                     showCancelConfirm = false,
+                    showRouteMap = false,
                     message = null,
                 )
             }
@@ -115,6 +121,7 @@ class BookingDetailsStore(
                             booking = Loadable.Content(updatedBooking),
                             cancelStatus = ActionStatus.Idle,
                             showCancelConfirm = false,
+                            showRouteMap = false,
                             message = updatedBooking.cancelSuccessMessage(),
                         )
                     }
@@ -133,6 +140,7 @@ class BookingDetailsStore(
                 it.copy(
                     cancelStatus = ActionStatus.Idle,
                     showCancelConfirm = false,
+                    showRouteMap = false,
                 )
             }
             effects.send(BookingDetailsEffect.SignedOut)

@@ -7,11 +7,16 @@ import com.volna.app.domain.model.InstructorId
 import com.volna.app.domain.model.MeetingPoint
 import com.volna.app.domain.model.MoneyRub
 import com.volna.app.domain.model.Route
+import com.volna.app.domain.model.RouteGeometry
 import com.volna.app.domain.model.RouteId
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.SlotStatus
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 fun SlotListResponseDto.toDomain(): Page<Slot> = Page(
     items = items.map { it.toDomain() },
@@ -59,9 +64,25 @@ fun RouteDto.toDomain(): Route = Route(
     },
     capacityCap = capacityCap,
     durationMin = durationMin,
+    geometry = geometry?.toRouteGeometry(),
 )
 
 fun InstructorDto.toDomain(): Instructor = Instructor(
     id = InstructorId(id),
     name = name,
 )
+
+private fun JsonElement.toRouteGeometry(): RouteGeometry? {
+    val points = (this as? JsonArray)?.mapNotNull { pointElement ->
+        val pair = pointElement as? JsonArray ?: return@mapNotNull null
+        val lat = pair.getOrNull(0)?.jsonPrimitive?.doubleOrNull
+        val lng = pair.getOrNull(1)?.jsonPrimitive?.doubleOrNull
+        if (lat != null && lng != null) GeoPoint(lat = lat, lng = lng) else null
+    }.orEmpty()
+
+    return if (points.isNotEmpty()) {
+        RouteGeometry(points)
+    } else {
+        null
+    }
+}

@@ -36,6 +36,9 @@ import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.BookingStatus
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.policy.CancellationKind
+import com.volna.app.map.RouteMapSheet
+import com.volna.app.map.RouteMapPreview
+import com.volna.app.map.toMapUiState
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.hours
 
@@ -125,6 +128,15 @@ fun BookingDetailsScreen(
                 clock = clock,
                 onIntent = onIntent,
             )
+        }
+        if (state.showRouteMap) {
+            state.currentBooking?.slot?.let { slot ->
+                RouteMapSheet(
+                    route = slot.route,
+                    meetingPoint = slot.meetingPoint,
+                    onDismiss = { onIntent(BookingDetailsIntent.DismissRouteMap) },
+                )
+            }
         }
     }
 }
@@ -254,9 +266,25 @@ private fun BookingDetailsContent(
             Text(booking.slot?.route?.type?.toUiText() ?: "Тип уточняется")
             Text("Инструктор: ${booking.slot?.instructor?.name ?: "уточняется"}")
         }
-        BookingInfoBlock {
-            Text("Место встречи", fontWeight = FontWeight.Bold)
-            Text(booking.slot?.meetingPoint?.title?.ifBlank { "уточняется" } ?: "уточняется")
+        booking.slot?.let { slot ->
+            Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+                Text("Карта маршрута", fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier.clickable { onIntent(BookingDetailsIntent.OpenRouteMap) },
+                ) {
+                    RouteMapPreview(
+                        route = slot.route,
+                        meetingPoint = slot.meetingPoint,
+                        state = slot.route.toMapUiState(),
+                        onRetry = {},
+                        onOpenExternal = { onIntent(BookingDetailsIntent.OpenRouteMap) },
+                    )
+                }
+                Text(
+                    text = "Место встречи: ${slot.meetingPoint.title.ifBlank { "уточняется" }}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         BookingInfoBlock {
             Text("Места и доски", fontWeight = FontWeight.Bold)

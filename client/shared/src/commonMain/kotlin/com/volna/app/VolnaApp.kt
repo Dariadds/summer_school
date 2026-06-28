@@ -76,6 +76,9 @@ import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.policy.AvailabilityPolicy
+import com.volna.app.map.RouteMapPreview
+import com.volna.app.map.RouteMapSheet
+import com.volna.app.map.toMapUiState
 import com.volna.app.profile.data.KtorProfileRepository
 import com.volna.app.profile.presentation.ProfileEffect
 import com.volna.app.profile.presentation.ProfileIntent
@@ -470,6 +473,7 @@ private fun SlotDetailsScreen(
     onBack: () -> Unit,
     onBook: (Slot) -> Unit,
 ) {
+    var showRouteMap by remember(slotId) { mutableStateOf(false) }
     LaunchedEffect(slotId) {
         onIntent(SlotDetailsIntent.Load(slotId))
     }
@@ -485,6 +489,7 @@ private fun SlotDetailsScreen(
             is Loadable.Content -> SlotDetailsContent(
                 slot = slot.value,
                 onBook = { onBook(slot.value) },
+                onOpenMap = { showRouteMap = true },
             )
             is Loadable.Empty -> StateMessage(
                 title = "Прогулка недоступна",
@@ -499,6 +504,15 @@ private fun SlotDetailsScreen(
                 onClick = { onIntent(SlotDetailsIntent.Retry) },
             )
         }
+        if (showRouteMap) {
+            (state.slot as? Loadable.Content)?.value?.let { slot ->
+                RouteMapSheet(
+                    route = slot.route,
+                    meetingPoint = slot.meetingPoint,
+                    onDismiss = { showRouteMap = false },
+                )
+            }
+        }
     }
 }
 
@@ -506,6 +520,7 @@ private fun SlotDetailsScreen(
 private fun SlotDetailsContent(
     slot: Slot,
     onBook: () -> Unit,
+    onOpenMap: () -> Unit,
 ) {
     val availability = AvailabilityPolicy.availability(slot)
     Column(
@@ -530,6 +545,20 @@ private fun SlotDetailsContent(
             Text("Маршрут: ${slot.route.type.toUiText()}, ${slot.route.durationMin} мин")
             Text("Инструктор: ${slot.instructor.name}")
             Text("Место встречи: ${slot.meetingPoint.title.ifBlank { "уточняется" }}")
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+            Text("Карта маршрута", fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier.clickable { onOpenMap() },
+            ) {
+                RouteMapPreview(
+                    route = slot.route,
+                    meetingPoint = slot.meetingPoint,
+                    state = slot.route.toMapUiState(),
+                    onRetry = {},
+                    onOpenExternal = onOpenMap,
+                )
+            }
         }
         Column(
             modifier = Modifier

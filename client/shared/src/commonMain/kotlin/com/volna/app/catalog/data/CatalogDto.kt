@@ -3,6 +3,7 @@ package com.volna.app.catalog.data
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class SlotListResponseDto(
@@ -57,6 +58,7 @@ data class RouteDto(
     val capacityCap: Int,
     @SerialName("duration_min")
     val durationMin: Int,
+    val geometry: JsonElement? = null,
 )
 
 @Serializable
