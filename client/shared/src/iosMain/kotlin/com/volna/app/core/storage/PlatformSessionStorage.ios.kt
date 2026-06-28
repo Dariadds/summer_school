@@ -1,15 +1,21 @@
 package com.volna.app.core.storage
 
-actual object PlatformSessionStorage : SessionStorage {
-    private var token: String? = null
+import platform.Foundation.NSUserDefaults
 
-    actual override suspend fun readToken(): String? = token
+actual object PlatformSessionStorage : SessionStorage {
+    private val defaults: NSUserDefaults
+        get() = NSUserDefaults.standardUserDefaults
+
+    actual override suspend fun readToken(): String? =
+        defaults.stringForKey(KEY_TOKEN)
 
     actual override suspend fun writeToken(token: String) {
-        this.token = token
+        defaults.setObject(token, forKey = KEY_TOKEN)
     }
 
     actual override suspend fun clearToken() {
-        token = null
+        defaults.removeObjectForKey(KEY_TOKEN)
     }
+
+    private const val KEY_TOKEN = "volna_bearer_token"
 }

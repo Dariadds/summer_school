@@ -1,15 +1,18 @@
 package com.volna.app.core.storage
 
-actual object PlatformSessionStorage : SessionStorage {
-    private var token: String? = null
+import kotlinx.browser.localStorage
 
-    actual override suspend fun readToken(): String? = token
+actual object PlatformSessionStorage : SessionStorage {
+    actual override suspend fun readToken(): String? =
+        localStorage.getItem(KEY_TOKEN)
 
     actual override suspend fun writeToken(token: String) {
-        this.token = token
+        localStorage.setItem(KEY_TOKEN, token)
     }
 
     actual override suspend fun clearToken() {
-        token = null
+        localStorage.removeItem(KEY_TOKEN)
     }
+
+    private const val KEY_TOKEN = "volna_bearer_token"
 }
