@@ -84,6 +84,11 @@ import com.volna.app.domain.policy.AvailabilityPolicy
 import com.volna.app.map.RouteMapPreview
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.map.toMapUiState
+import com.volna.app.notifications.InMemoryPushPermissionFlagStore
+import com.volna.app.notifications.PlatformPushPermissionGateway
+import com.volna.app.notifications.PushPermissionIntent
+import com.volna.app.notifications.PushPermissionState
+import com.volna.app.notifications.PushPermissionStore
 import com.volna.app.profile.data.KtorProfileRepository
 import com.volna.app.profile.presentation.ProfileEffect
 import com.volna.app.profile.presentation.ProfileIntent
@@ -136,6 +141,13 @@ fun VolnaApp() {
         }
         val bookingListStore = remember { BookingListStore(bookingRepository, clock, appScope) }
         val bookingDetailsStore = remember { BookingDetailsStore(bookingRepository, clock, appScope) }
+        val pushPermissionStore = remember {
+            PushPermissionStore(
+                gateway = PlatformPushPermissionGateway,
+                flagStore = InMemoryPushPermissionFlagStore,
+                scope = appScope,
+            )
+        }
         val authState by authStore.state.collectAsState()
         val profileState by profileStore.state.collectAsState()
         val slotListState by slotListStore.state.collectAsState()
@@ -143,6 +155,7 @@ fun VolnaApp() {
         val bookingFormState by bookingFormStore.state.collectAsState()
         val bookingListState by bookingListStore.state.collectAsState()
         val bookingDetailsState by bookingDetailsStore.state.collectAsState()
+        val pushPermissionState by pushPermissionStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
 
         fun resetToAuth() {
@@ -238,6 +251,8 @@ fun VolnaApp() {
                 onBookingListIntent = bookingListStore::accept,
                 bookingDetailsState = bookingDetailsState,
                 onBookingDetailsIntent = bookingDetailsStore::accept,
+                pushPermissionState = pushPermissionState,
+                onPushPermissionIntent = pushPermissionStore::accept,
                 clock = clock,
                 profileState = profileState,
                 onProfileIntent = profileStore::accept,
@@ -279,6 +294,8 @@ private fun MainTabs(
     onBookingListIntent: (BookingListIntent) -> Unit,
     bookingDetailsState: BookingDetailsState,
     onBookingDetailsIntent: (BookingDetailsIntent) -> Unit,
+    pushPermissionState: PushPermissionState,
+    onPushPermissionIntent: (PushPermissionIntent) -> Unit,
     clock: AppClock,
     profileState: ProfileState,
     onProfileIntent: (ProfileIntent) -> Unit,
@@ -317,6 +334,8 @@ private fun MainTabs(
                         slot = route.slot,
                         state = bookingFormState,
                         onIntent = onBookingFormIntent,
+                        pushPermissionState = pushPermissionState,
+                        onPushPermissionIntent = onPushPermissionIntent,
                         onBack = { slotsRoute = SlotsRoute.Details(route.slot.id) },
                         onDone = {
                             onBookingFormIntent(BookingFormIntent.SuccessDismissed)
@@ -796,6 +815,8 @@ private fun BookingFormScreen(
     slot: Slot,
     state: BookingFormState,
     onIntent: (BookingFormIntent) -> Unit,
+    pushPermissionState: PushPermissionState,
+    onPushPermissionIntent: (PushPermissionIntent) -> Unit,
     onBack: () -> Unit,
     onDone: () -> Unit,
     onOpenBookings: () -> Unit,
@@ -811,9 +832,14 @@ private fun BookingFormScreen(
             onIntent = onIntent,
         )
         state.createdBooking?.let { booking ->
+            LaunchedEffect(booking.id) {
+                onPushPermissionIntent(PushPermissionIntent.BookingSuccessShown)
+            }
             BookingSuccessSheet(
                 booking = booking,
                 fallbackPrice = state.totalPrice?.value ?: 0,
+                pushPermissionState = pushPermissionState,
+                onPushPermissionIntent = onPushPermissionIntent,
                 onDone = onDone,
                 onOpenBookings = onOpenBookings,
             )
@@ -889,6 +915,8 @@ private fun BookingFormContent(
 private fun BookingSuccessSheet(
     booking: Booking,
     fallbackPrice: Int,
+    pushPermissionState: PushPermissionState,
+    onPushPermissionIntent: (PushPermissionIntent) -> Unit,
     onDone: () -> Unit,
     onOpenBookings: () -> Unit,
 ) {
@@ -932,6 +960,29 @@ private fun BookingSuccessSheet(
             Text("Своя доска: ${(booking.seatsCount - booking.rentalCount).coerceAtLeast(0)}")
             Text("${booking.priceTotal?.value ?: fallbackPrice} ₽", style = MaterialTheme.typography.headlineSmall)
             Text("Оплата на месте перед прогулкой", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (pushPermissionState.showPrompt) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                        )
+                        .padding(VolnaTheme.tokens.spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+                ) {
+                    Text("Напомним перед стартом", fontWeight = FontWeight.Bold)
+                    Text("Включите уведомления, чтобы не пропустить прогулку")
+                    Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+                        Button(onClick = { onPushPermissionIntent(PushPermissionIntent.RequestPermission) }) {
+                            Text("Включить")
+                        }
+                        OutlinedButton(onClick = { onPushPermissionIntent(PushPermissionIntent.DismissPrompt) }) {
+                            Text("Не сейчас")
+                        }
+                    }
+                }
+            }
             Button(
                 onClick = onOpenBookings,
                 modifier = Modifier
