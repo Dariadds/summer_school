@@ -57,6 +57,7 @@ sealed interface AuthIntent {
     data class NameChanged(val value: String) : AuthIntent
     data object ContinueWithName : AuthIntent
     data object MessageShown : AuthIntent
+    data object Reset : AuthIntent
 }
 
 sealed interface AuthEffect {
@@ -85,6 +86,7 @@ class AuthStore(
             is AuthIntent.NameChanged -> onNameChanged(intent.value)
             AuthIntent.ContinueWithName -> continueWithName()
             AuthIntent.MessageShown -> mutableState.update { it.copy(message = null) }
+            AuthIntent.Reset -> reset()
         }
     }
 
@@ -278,6 +280,11 @@ class AuthStore(
                 message = "Сессия истекла, войдите снова",
             )
         }
+    }
+
+    private fun reset() {
+        resendTimer?.cancel()
+        mutableState.value = AuthState()
     }
 
     private fun startResendTimer(seconds: Int) {

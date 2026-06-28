@@ -34,12 +34,18 @@ import androidx.compose.ui.text.font.FontWeight
 import com.volna.app.auth.data.DefaultSessionRepository
 import com.volna.app.auth.data.KtorAuthRepository
 import com.volna.app.auth.presentation.AuthEffect
+import com.volna.app.auth.presentation.AuthIntent
 import com.volna.app.auth.presentation.AuthScreen
 import com.volna.app.auth.presentation.AuthStore
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.network.VolnaApiClient
 import com.volna.app.core.storage.PlatformSessionStorage
 import com.volna.app.profile.data.KtorProfileRepository
+import com.volna.app.profile.presentation.ProfileEffect
+import com.volna.app.profile.presentation.ProfileIntent
+import com.volna.app.profile.presentation.ProfileScreen
+import com.volna.app.profile.presentation.ProfileState
+import com.volna.app.profile.presentation.ProfileStore
 
 private enum class MainTab(val title: String) {
     Slots("Прогулки"),
@@ -62,7 +68,9 @@ fun VolnaApp() {
         val authRepository = remember { KtorAuthRepository(apiClient, sessionRepository) }
         val profileRepository = remember { KtorProfileRepository(apiClient, sessionRepository) }
         val authStore = remember { AuthStore(authRepository, profileRepository, appScope) }
+        val profileStore = remember { ProfileStore(profileRepository, authRepository, appScope) }
         val authState by authStore.state.collectAsState()
+        val profileState by profileStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
 
         LaunchedEffect(sessionRepository) {
@@ -81,13 +89,28 @@ fun VolnaApp() {
             }
         }
 
+        LaunchedEffect(profileStore) {
+            while (true) {
+                when (profileStore.effects()) {
+                    ProfileEffect.SignedOut -> {
+                        authStore.accept(AuthIntent.Reset)
+                        profileStore.accept(ProfileIntent.Reset)
+                        rootState = RootState.Auth
+                    }
+                }
+            }
+        }
+
         when (rootState) {
             RootState.CheckingSession -> SessionSplash()
             RootState.Auth -> AuthScreen(
                 state = authState,
                 onIntent = authStore::accept,
             )
-            RootState.Main -> MainTabs()
+            RootState.Main -> MainTabs(
+                profileState = profileState,
+                onProfileIntent = profileStore::accept,
+            )
         }
     }
 }
@@ -114,7 +137,10 @@ private fun SessionSplash() {
 }
 
 @Composable
-private fun MainTabs() {
+private fun MainTabs(
+    profileState: ProfileState,
+    onProfileIntent: (ProfileIntent) -> Unit,
+) {
     var selectedTab by remember { mutableStateOf(MainTab.Slots) }
     Scaffold(
         bottomBar = {
@@ -139,7 +165,10 @@ private fun MainTabs() {
             when (selectedTab) {
                 MainTab.Slots -> SlotListPlaceholder()
                 MainTab.Bookings -> BookingsPlaceholder()
-                MainTab.Profile -> ProfilePlaceholder()
+                MainTab.Profile -> ProfileScreen(
+                    state = profileState,
+                    onIntent = onProfileIntent,
+                )
             }
         }
     }
@@ -215,23 +244,6 @@ private fun BookingsPlaceholder() {
         Text("Здесь появятся предстоящие и прошедшие прогулки.")
         Button(onClick = {}) {
             Text("Записаться на прогулку")
-        }
-    }
-}
-
-@Composable
-private fun ProfilePlaceholder() {
-    val spacing = VolnaTheme.tokens.spacing
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(spacing.md),
-        verticalArrangement = Arrangement.spacedBy(spacing.sm),
-    ) {
-        Text("Профиль", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("Телефон и имя клиента будут загружаться из Profile API.")
-        Button(onClick = {}) {
-            Text("Выйти")
         }
     }
 }
