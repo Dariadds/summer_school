@@ -37,9 +37,16 @@ import com.volna.app.auth.presentation.AuthEffect
 import com.volna.app.auth.presentation.AuthIntent
 import com.volna.app.auth.presentation.AuthScreen
 import com.volna.app.auth.presentation.AuthStore
+import com.volna.app.catalog.data.KtorSlotRepository
+import com.volna.app.catalog.presentation.SlotListEffect
+import com.volna.app.catalog.presentation.SlotListIntent
+import com.volna.app.catalog.presentation.SlotListState
+import com.volna.app.catalog.presentation.SlotListStore
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.network.VolnaApiClient
 import com.volna.app.core.storage.PlatformSessionStorage
+import com.volna.app.core.ui.Loadable
+import com.volna.app.domain.model.Slot
 import com.volna.app.profile.data.KtorProfileRepository
 import com.volna.app.profile.presentation.ProfileEffect
 import com.volna.app.profile.presentation.ProfileIntent
@@ -67,10 +74,13 @@ fun VolnaApp() {
         val apiClient = remember { VolnaApiClient(sessionRepository) }
         val authRepository = remember { KtorAuthRepository(apiClient, sessionRepository) }
         val profileRepository = remember { KtorProfileRepository(apiClient, sessionRepository) }
+        val slotRepository = remember { KtorSlotRepository(apiClient) }
         val authStore = remember { AuthStore(authRepository, profileRepository, appScope) }
         val profileStore = remember { ProfileStore(profileRepository, authRepository, appScope) }
+        val slotListStore = remember { SlotListStore(slotRepository, appScope) }
         val authState by authStore.state.collectAsState()
         val profileState by profileStore.state.collectAsState()
+        val slotListState by slotListStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
 
         LaunchedEffect(sessionRepository) {
@@ -95,6 +105,20 @@ fun VolnaApp() {
                     ProfileEffect.SignedOut -> {
                         authStore.accept(AuthIntent.Reset)
                         profileStore.accept(ProfileIntent.Reset)
+                        slotListStore.accept(SlotListIntent.Reset)
+                        rootState = RootState.Auth
+                    }
+                }
+            }
+        }
+
+        LaunchedEffect(slotListStore) {
+            while (true) {
+                when (slotListStore.effects()) {
+                    SlotListEffect.SignedOut -> {
+                        authStore.accept(AuthIntent.Reset)
+                        profileStore.accept(ProfileIntent.Reset)
+                        slotListStore.accept(SlotListIntent.Reset)
                         rootState = RootState.Auth
                     }
                 }
@@ -108,6 +132,8 @@ fun VolnaApp() {
                 onIntent = authStore::accept,
             )
             RootState.Main -> MainTabs(
+                slotListState = slotListState,
+                onSlotListIntent = slotListStore::accept,
                 profileState = profileState,
                 onProfileIntent = profileStore::accept,
             )
@@ -138,6 +164,8 @@ private fun SessionSplash() {
 
 @Composable
 private fun MainTabs(
+    slotListState: SlotListState,
+    onSlotListIntent: (SlotListIntent) -> Unit,
     profileState: ProfileState,
     onProfileIntent: (ProfileIntent) -> Unit,
 ) {
@@ -154,7 +182,10 @@ private fun MainTabs(
                 .widthIn(max = VolnaTheme.tokens.sizing.screenMaxWidth),
         ) {
             when (selectedTab) {
-                MainTab.Slots -> SlotListPlaceholder()
+                MainTab.Slots -> SlotListScreen(
+                    state = slotListState,
+                    onIntent = onSlotListIntent,
+                )
                 MainTab.Bookings -> BookingsPlaceholder()
                 MainTab.Profile -> ProfileScreen(
                     state = profileState,
@@ -171,7 +202,13 @@ private fun MainTabs(
 }
 
 @Composable
-private fun SlotListPlaceholder() {
+private fun SlotListScreen(
+    state: SlotListState,
+    onIntent: (SlotListIntent) -> Unit,
+) {
+    LaunchedEffect(Unit) {
+        onIntent(SlotListIntent.Load)
+    }
     ScreenTitle("Прогулки")
     Text(
         text = "≡",
@@ -182,8 +219,24 @@ private fun SlotListPlaceholder() {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.Bold,
     )
-    SkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
-    SkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
+    when (val slots = state.slots) {
+        Loadable.Initial,
+        Loadable.Loading -> {
+            SkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
+            SkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
+        }
+        is Loadable.Content -> SlotCards(slots.value)
+        is Loadable.Empty -> StateMessage(
+            title = "Пока нет доступных прогулок",
+            description = "Загляните позже",
+        )
+        is Loadable.Error -> StateMessage(
+            title = "Не удалось загрузить",
+            description = "Проверьте соединение и попробуйте снова",
+            buttonText = "Повторить",
+            onClick = { onIntent(SlotListIntent.Retry) },
+        )
+    }
 }
 
 @Composable
@@ -203,6 +256,42 @@ private fun SkeletonCard(
 }
 
 @Composable
+private fun SlotCards(slots: List<Slot>) {
+    Column(
+        modifier = Modifier
+            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        slots.take(3).forEach { slot ->
+            SlotCard(slot)
+        }
+    }
+}
+
+@Composable
+private fun SlotCard(slot: Slot) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.listCardHeight)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+            )
+            .padding(VolnaTheme.tokens.spacing.md),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+            Text(slot.route.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Инструктор: ${slot.instructor.name}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Свободно мест: ${slot.freeSeats}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text("${slot.price.value} ₽", fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
 private fun ScreenTitle(title: String) {
     Text(
         text = title,
@@ -213,6 +302,30 @@ private fun ScreenTitle(title: String) {
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Bold,
     )
+}
+
+@Composable
+private fun StateMessage(
+    title: String,
+    description: String,
+    buttonText: String? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = Modifier
+            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listStateMessageY),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        if (buttonText != null && onClick != null) {
+            Button(onClick = onClick) {
+                Text(buttonText)
+            }
+        }
+    }
 }
 
 @Composable

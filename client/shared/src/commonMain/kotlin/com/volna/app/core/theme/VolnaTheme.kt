@@ -43,6 +43,7 @@ data class VolnaSizing(
     val listCardTopY: Dp = 136.dp,
     val listCardSecondY: Dp = 308.dp,
     val listCardHeight: Dp = 160.dp,
+    val listStateMessageY: Dp = 364.dp,
     val filterIconX: Dp = 348.dp,
     val fieldHeight: Dp = 52.dp,
     val codeInputWidth: Dp = 84.dp,
