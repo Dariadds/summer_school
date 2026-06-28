@@ -84,7 +84,7 @@ import com.volna.app.domain.policy.AvailabilityPolicy
 import com.volna.app.map.RouteMapPreview
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.map.toMapUiState
-import com.volna.app.notifications.InMemoryPushPermissionFlagStore
+import com.volna.app.notifications.PlatformPushPermissionFlagStore
 import com.volna.app.notifications.PlatformPushPermissionGateway
 import com.volna.app.notifications.PushPermissionIntent
 import com.volna.app.notifications.PushPermissionState
@@ -144,7 +144,7 @@ fun VolnaApp() {
         val pushPermissionStore = remember {
             PushPermissionStore(
                 gateway = PlatformPushPermissionGateway,
-                flagStore = InMemoryPushPermissionFlagStore,
+                flagStore = PlatformPushPermissionFlagStore,
                 scope = appScope,
             )
         }
