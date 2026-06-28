@@ -40,6 +40,16 @@ import com.volna.app.booking.presentation.BookingFormEffect
 import com.volna.app.booking.presentation.BookingFormIntent
 import com.volna.app.booking.presentation.BookingFormState
 import com.volna.app.booking.presentation.BookingFormStore
+import com.volna.app.booking.presentation.BookingDetailsEffect
+import com.volna.app.booking.presentation.BookingDetailsIntent
+import com.volna.app.booking.presentation.BookingDetailsScreen
+import com.volna.app.booking.presentation.BookingDetailsState
+import com.volna.app.booking.presentation.BookingDetailsStore
+import com.volna.app.booking.presentation.BookingListEffect
+import com.volna.app.booking.presentation.BookingListIntent
+import com.volna.app.booking.presentation.BookingListScreen
+import com.volna.app.booking.presentation.BookingListState
+import com.volna.app.booking.presentation.BookingListStore
 import com.volna.app.auth.data.DefaultSessionRepository
 import com.volna.app.auth.data.KtorAuthRepository
 import com.volna.app.auth.presentation.AuthEffect
@@ -58,7 +68,10 @@ import com.volna.app.catalog.presentation.SlotListStore
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.network.VolnaApiClient
 import com.volna.app.core.storage.PlatformSessionStorage
+import com.volna.app.core.time.AppClock
+import com.volna.app.core.time.SystemAppClock
 import com.volna.app.core.ui.Loadable
+import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.RouteType
@@ -88,10 +101,16 @@ private sealed interface SlotsRoute {
     data class Booking(val slot: Slot) : SlotsRoute
 }
 
+private sealed interface BookingsRoute {
+    data object List : BookingsRoute
+    data class Details(val bookingId: BookingId) : BookingsRoute
+}
+
 @Composable
 fun VolnaApp() {
     VolnaTheme {
         val appScope = rememberCoroutineScope()
+        val clock = remember { SystemAppClock }
         val sessionRepository = remember { DefaultSessionRepository(PlatformSessionStorage) }
         val apiClient = remember { VolnaApiClient(sessionRepository) }
         val authRepository = remember { KtorAuthRepository(apiClient, sessionRepository) }
@@ -106,12 +125,27 @@ fun VolnaApp() {
         val bookingFormStore = remember {
             BookingFormStore(bookingRepository, idempotencyKeyFactory, appScope)
         }
+        val bookingListStore = remember { BookingListStore(bookingRepository, clock, appScope) }
+        val bookingDetailsStore = remember { BookingDetailsStore(bookingRepository, clock, appScope) }
         val authState by authStore.state.collectAsState()
         val profileState by profileStore.state.collectAsState()
         val slotListState by slotListStore.state.collectAsState()
         val slotDetailsState by slotDetailsStore.state.collectAsState()
         val bookingFormState by bookingFormStore.state.collectAsState()
+        val bookingListState by bookingListStore.state.collectAsState()
+        val bookingDetailsState by bookingDetailsStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
+
+        fun resetToAuth() {
+            authStore.accept(AuthIntent.Reset)
+            profileStore.accept(ProfileIntent.Reset)
+            slotListStore.accept(SlotListIntent.Reset)
+            slotDetailsStore.accept(SlotDetailsIntent.Reset)
+            bookingFormStore.accept(BookingFormIntent.Reset)
+            bookingListStore.accept(BookingListIntent.Reset)
+            bookingDetailsStore.accept(BookingDetailsIntent.Reset)
+            rootState = RootState.Auth
+        }
 
         LaunchedEffect(sessionRepository) {
             rootState = if (sessionRepository.token().isNullOrBlank()) {
@@ -132,14 +166,7 @@ fun VolnaApp() {
         LaunchedEffect(profileStore) {
             while (true) {
                 when (profileStore.effects()) {
-                    ProfileEffect.SignedOut -> {
-                        authStore.accept(AuthIntent.Reset)
-                        profileStore.accept(ProfileIntent.Reset)
-                        slotListStore.accept(SlotListIntent.Reset)
-                        slotDetailsStore.accept(SlotDetailsIntent.Reset)
-                        bookingFormStore.accept(BookingFormIntent.Reset)
-                        rootState = RootState.Auth
-                    }
+                    ProfileEffect.SignedOut -> resetToAuth()
                 }
             }
         }
@@ -147,14 +174,7 @@ fun VolnaApp() {
         LaunchedEffect(slotListStore) {
             while (true) {
                 when (slotListStore.effects()) {
-                    SlotListEffect.SignedOut -> {
-                        authStore.accept(AuthIntent.Reset)
-                        profileStore.accept(ProfileIntent.Reset)
-                        slotListStore.accept(SlotListIntent.Reset)
-                        slotDetailsStore.accept(SlotDetailsIntent.Reset)
-                        bookingFormStore.accept(BookingFormIntent.Reset)
-                        rootState = RootState.Auth
-                    }
+                    SlotListEffect.SignedOut -> resetToAuth()
                 }
             }
         }
@@ -162,14 +182,7 @@ fun VolnaApp() {
         LaunchedEffect(slotDetailsStore) {
             while (true) {
                 when (slotDetailsStore.effects()) {
-                    SlotDetailsEffect.SignedOut -> {
-                        authStore.accept(AuthIntent.Reset)
-                        profileStore.accept(ProfileIntent.Reset)
-                        slotListStore.accept(SlotListIntent.Reset)
-                        slotDetailsStore.accept(SlotDetailsIntent.Reset)
-                        bookingFormStore.accept(BookingFormIntent.Reset)
-                        rootState = RootState.Auth
-                    }
+                    SlotDetailsEffect.SignedOut -> resetToAuth()
                 }
             }
         }
@@ -177,14 +190,24 @@ fun VolnaApp() {
         LaunchedEffect(bookingFormStore) {
             while (true) {
                 when (bookingFormStore.effects()) {
-                    BookingFormEffect.SignedOut -> {
-                        authStore.accept(AuthIntent.Reset)
-                        profileStore.accept(ProfileIntent.Reset)
-                        slotListStore.accept(SlotListIntent.Reset)
-                        slotDetailsStore.accept(SlotDetailsIntent.Reset)
-                        bookingFormStore.accept(BookingFormIntent.Reset)
-                        rootState = RootState.Auth
-                    }
+                    BookingFormEffect.SignedOut -> resetToAuth()
+                }
+            }
+        }
+
+        LaunchedEffect(bookingListStore) {
+            while (true) {
+                when (bookingListStore.effects()) {
+                    BookingListEffect.SignedOut -> resetToAuth()
+                }
+            }
+        }
+
+        LaunchedEffect(bookingDetailsStore) {
+            while (true) {
+                when (bookingDetailsStore.effects()) {
+                    BookingDetailsEffect.SignedOut -> resetToAuth()
+                    BookingDetailsEffect.BookingChanged -> bookingListStore.accept(BookingListIntent.Refresh)
                 }
             }
         }
@@ -202,6 +225,11 @@ fun VolnaApp() {
                 onSlotDetailsIntent = slotDetailsStore::accept,
                 bookingFormState = bookingFormState,
                 onBookingFormIntent = bookingFormStore::accept,
+                bookingListState = bookingListState,
+                onBookingListIntent = bookingListStore::accept,
+                bookingDetailsState = bookingDetailsState,
+                onBookingDetailsIntent = bookingDetailsStore::accept,
+                clock = clock,
                 profileState = profileState,
                 onProfileIntent = profileStore::accept,
             )
@@ -238,11 +266,17 @@ private fun MainTabs(
     onSlotDetailsIntent: (SlotDetailsIntent) -> Unit,
     bookingFormState: BookingFormState,
     onBookingFormIntent: (BookingFormIntent) -> Unit,
+    bookingListState: BookingListState,
+    onBookingListIntent: (BookingListIntent) -> Unit,
+    bookingDetailsState: BookingDetailsState,
+    onBookingDetailsIntent: (BookingDetailsIntent) -> Unit,
+    clock: AppClock,
     profileState: ProfileState,
     onProfileIntent: (ProfileIntent) -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(MainTab.Slots) }
     var slotsRoute by remember { mutableStateOf<SlotsRoute>(SlotsRoute.List) }
+    var bookingsRoute by remember { mutableStateOf<BookingsRoute>(BookingsRoute.List) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -278,26 +312,50 @@ private fun MainTabs(
                         onDone = {
                             onBookingFormIntent(BookingFormIntent.SuccessDismissed)
                             slotsRoute = SlotsRoute.List
+                            bookingsRoute = BookingsRoute.List
+                            onBookingListIntent(BookingListIntent.Refresh)
                             selectedTab = MainTab.Bookings
                         },
                     )
                 }
-                MainTab.Bookings -> BookingsPlaceholder()
+                MainTab.Bookings -> when (val route = bookingsRoute) {
+                    BookingsRoute.List -> BookingListScreen(
+                        state = bookingListState,
+                        onIntent = onBookingListIntent,
+                        onBookingClick = { bookingId -> bookingsRoute = BookingsRoute.Details(bookingId) },
+                        onBookWalk = {
+                            slotsRoute = SlotsRoute.List
+                            selectedTab = MainTab.Slots
+                        },
+                    )
+                    is BookingsRoute.Details -> BookingDetailsScreen(
+                        bookingId = route.bookingId,
+                        state = bookingDetailsState,
+                        clock = clock,
+                        onIntent = onBookingDetailsIntent,
+                        onBack = { bookingsRoute = BookingsRoute.List },
+                    )
+                }
                 MainTab.Profile -> ProfileScreen(
                     state = profileState,
                     onIntent = onProfileIntent,
                 )
             }
-            FloatingNavigationBar(
-                selectedTab = selectedTab,
-                onTabSelected = {
-                    if (it == MainTab.Slots) {
-                        slotsRoute = SlotsRoute.List
-                    }
-                    selectedTab = it
-                },
-                modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
-            )
+            if (selectedTab != MainTab.Bookings || bookingsRoute == BookingsRoute.List) {
+                FloatingNavigationBar(
+                    selectedTab = selectedTab,
+                    onTabSelected = {
+                        if (it == MainTab.Slots) {
+                            slotsRoute = SlotsRoute.List
+                        }
+                        if (it == MainTab.Bookings) {
+                            bookingsRoute = BookingsRoute.List
+                        }
+                        selectedTab = it
+                    },
+                    modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
+                )
+            }
         }
     }
 }
