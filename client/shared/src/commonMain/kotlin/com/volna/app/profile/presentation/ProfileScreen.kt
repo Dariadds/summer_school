@@ -12,13 +12,16 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -103,6 +106,12 @@ fun ProfileScreen(
             onDismiss = { onIntent(ProfileIntent.LogoutDismissed) },
         )
     }
+    if (state.deleteConfirmVisible) {
+        DeleteAccountConfirmDialog(
+            onConfirm = { onIntent(ProfileIntent.DeleteConfirmed) },
+            onDismiss = { onIntent(ProfileIntent.DeleteDismissed) },
+        )
+    }
 }
 
 @Composable
@@ -115,42 +124,170 @@ private fun ProfileContent(
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
+            .verticalScroll(rememberScrollState())
             .offset(
                 x = VolnaTheme.tokens.spacing.md,
                 y = VolnaTheme.tokens.sizing.profileInfoY,
             ),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
     ) {
-        ProfileInfoRow(label = "Имя", value = clientName.ifBlank { "Имя не указано" })
-        ProfileInfoRow(label = "Телефон", value = phone)
+        when (state.mode) {
+            ProfileMode.View -> ProfileViewContent(
+                state = state,
+                clientName = clientName,
+                phone = phone,
+                onIntent = onIntent,
+            )
+            ProfileMode.Edit -> ProfileEditContent(
+                state = state,
+                onIntent = onIntent,
+            )
+            ProfileMode.ConfirmPhone -> ProfilePhoneConfirmContent(
+                state = state,
+                onIntent = onIntent,
+            )
+        }
     }
-    Column(
+}
+
+@Composable
+private fun ProfileViewContent(
+    state: ProfileState,
+    clientName: String,
+    phone: String,
+    onIntent: (ProfileIntent) -> Unit,
+) {
+    ProfileInfoRow(label = "Имя", value = clientName.ifBlank { "Имя не указано" })
+    ProfileInfoRow(label = "Телефон", value = phone)
+    OutlinedButton(
+        onClick = { onIntent(ProfileIntent.EditClicked) },
+        enabled = !state.isSubmitting,
+        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
         modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(
-                x = VolnaTheme.tokens.spacing.md,
-                y = VolnaTheme.tokens.sizing.profileLinksY,
-            ),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight),
     ) {
-        InfoLine("Правила клуба", "›")
-        InfoLine("Поддержка", "›")
-        InfoLine("Версия приложения", "1.0.0")
+        Text("Редактировать", fontWeight = FontWeight.Bold)
+    }
+    ProfileLinks()
+    ProfileDangerActions(state = state, onIntent = onIntent)
+}
+
+@Composable
+private fun ProfileEditContent(
+    state: ProfileState,
+    onIntent: (ProfileIntent) -> Unit,
+) {
+    ProfileTextField(
+        value = state.nameInput,
+        onValueChange = { onIntent(ProfileIntent.NameChanged(it)) },
+        label = "Имя",
+        enabled = !state.isSubmitting,
+    )
+    ProfileTextField(
+        value = state.phoneInput,
+        onValueChange = { onIntent(ProfileIntent.PhoneChanged(it)) },
+        label = "Телефон",
+        enabled = !state.isSubmitting,
+    )
+    state.fieldError?.let {
+        Text(it, color = MaterialTheme.colorScheme.error)
+    }
+    Button(
+        onClick = { onIntent(ProfileIntent.SaveClicked) },
+        enabled = state.canSave,
+        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight),
+    ) {
+        Text(if (state.isSubmitting) "Сохраняем..." else "Сохранить", fontWeight = FontWeight.Bold)
     }
     OutlinedButton(
-        onClick = { onIntent(ProfileIntent.LogoutClicked) },
-        enabled = state.actionStatus == ActionStatus.Idle,
+        onClick = { onIntent(ProfileIntent.EditCancelled) },
+        enabled = !state.isSubmitting,
         shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.primary,
-        ),
         modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .height(VolnaTheme.tokens.sizing.buttonHeight)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.profileLogoutY),
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight),
     ) {
-        Text(if (state.isSubmitting) "Выходим..." else "Выйти", fontWeight = FontWeight.Bold)
+        Text("Отменить")
     }
+}
+
+@Composable
+private fun ProfilePhoneConfirmContent(
+    state: ProfileState,
+    onIntent: (ProfileIntent) -> Unit,
+) {
+    Text(
+        text = "Подтвердите новый номер кодом из SMS",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
+    Text(
+        text = state.pendingPhone ?: state.phoneInput,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    ProfileTextField(
+        value = state.codeInput,
+        onValueChange = { onIntent(ProfileIntent.CodeChanged(it)) },
+        label = "Код из SMS",
+        enabled = !state.isSubmitting,
+    )
+    state.fieldError?.let {
+        Text(it, color = MaterialTheme.colorScheme.error)
+    }
+    Button(
+        onClick = { onIntent(ProfileIntent.ConfirmPhoneClicked) },
+        enabled = state.canConfirmPhone,
+        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight),
+    ) {
+        Text(if (state.isSubmitting) "Проверяем..." else "Подтвердить", fontWeight = FontWeight.Bold)
+    }
+    TextButton(
+        onClick = { onIntent(ProfileIntent.ResendPhoneCode) },
+        enabled = state.canResendCode,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            if (state.resendSecondsRemaining > 0) {
+                "Отправить код повторно (00:${state.resendSecondsRemaining.toString().padStart(2, '0')})"
+            } else {
+                "Отправить код повторно"
+            },
+        )
+    }
+    OutlinedButton(
+        onClick = { onIntent(ProfileIntent.BackToEdit) },
+        enabled = !state.isSubmitting,
+        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight),
+    ) {
+        Text("Назад к редактированию")
+    }
+}
+
+@Composable
+private fun ProfileTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        singleLine = true,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -174,7 +311,50 @@ private fun ProfileInfoRow(
             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.bodyLarge)
         }
-        Text("✎", style = MaterialTheme.typography.titleLarge)
+    }
+}
+
+@Composable
+private fun ProfileLinks() {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        InfoLine("Правила клуба", "›")
+        InfoLine("Поддержка", "›")
+        InfoLine("Версия приложения", "1.0.0")
+    }
+}
+
+@Composable
+private fun ProfileDangerActions(
+    state: ProfileState,
+    onIntent: (ProfileIntent) -> Unit,
+) {
+    OutlinedButton(
+        onClick = { onIntent(ProfileIntent.LogoutClicked) },
+        enabled = state.actionStatus == ActionStatus.Idle,
+        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight),
+    ) {
+        Text(if (state.isSubmitting) "Выходим..." else "Выйти", fontWeight = FontWeight.Bold)
+    }
+    OutlinedButton(
+        onClick = { onIntent(ProfileIntent.DeleteClicked) },
+        enabled = state.actionStatus == ActionStatus.Idle,
+        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.error,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(VolnaTheme.tokens.sizing.buttonHeight),
+    ) {
+        Text(if (state.isSubmitting) "Удаляем..." else "Удалить аккаунт", fontWeight = FontWeight.Bold)
     }
 }
 
@@ -231,6 +411,28 @@ private fun LogoutConfirmDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Не выходить")
+            }
+        },
+    )
+}
+
+@Composable
+private fun DeleteAccountConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Удалить аккаунт?") },
+        text = { Text("Профиль будет удалён. Для новых записей потребуется зарегистрироваться снова.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Удалить", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отменить")
             }
         },
     )

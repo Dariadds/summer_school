@@ -29,7 +29,9 @@ class KtorProfileRepository(
         val result = apiClient.sendUnit("/profile", authorized = true) {
             method = HttpMethod.Delete
         }
-        sessionRepository.clearToken()
+        if (result.isSuccess) {
+            sessionRepository.clearToken()
+        }
         return result
     }
 
