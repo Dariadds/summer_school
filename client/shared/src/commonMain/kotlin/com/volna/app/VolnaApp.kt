@@ -33,8 +33,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.volna.app.booking.data.KtorBookingRepository
 import com.volna.app.booking.data.RandomIdempotencyKeyFactory
 import com.volna.app.booking.presentation.BookingFormEffect
@@ -92,6 +96,10 @@ import com.volna.app.profile.presentation.ProfileScreen
 import com.volna.app.profile.presentation.ProfileState
 import com.volna.app.profile.presentation.ProfileStore
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Month
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 private enum class MainTab(val title: String) {
     Slots("Прогулки"),
@@ -638,12 +646,14 @@ private fun SlotCards(
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY),
+            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
-        slots.take(3).forEach { slot ->
+        slots.forEach { slot ->
             SlotCard(slot, onSlotClick)
         }
+        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight + VolnaTheme.tokens.spacing.xl))
     }
 }
 
@@ -660,21 +670,128 @@ private fun SlotCard(
             .clickable(enabled = canOpen) { onSlotClick(slot) }
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
             )
             .padding(VolnaTheme.tokens.spacing.md),
-        verticalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
-            Text(slot.route.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Инструктор: ${slot.instructor.name}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SlotPreviewPhoto()
+            Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+                    SlotTag(
+                        text = slot.route.type.toTagText(),
+                        color = Color(0xFF92FF9A),
+                    )
+                    SlotTag(
+                        text = slot.route.name,
+                        color = Color(0xFFFFF897),
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+                Text(
+                    text = slot.startAt.toSlotCardStartText(),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
             Text(
-                text = if (canOpen) "Свободно мест: ${slot.freeSeats}" else "Мест нет",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "Инструктор: ${slot.instructor.name}",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "${slot.price.value} ₽",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
-        Text("${slot.price.value} ₽", fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                )
+                .padding(horizontal = VolnaTheme.tokens.spacing.sm),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (canOpen) "Свободно мест" else "Мест нет",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "${slot.freeSeats} из ${slot.totalSeats}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
+}
+
+@Composable
+private fun SlotPreviewPhoto() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color(0xFFD8EEF0),
+                        Color(0xFFF7F0D8),
+                        Color(0xFFCFE4E8),
+                    ),
+                ),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .align(androidx.compose.ui.Alignment.BottomCenter)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.36f)),
+                    ),
+                    shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                ),
+        )
+    }
+}
+
+@Composable
+private fun SlotTag(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        modifier = modifier
+            .background(
+                color = color,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.sm),
+            )
+            .padding(horizontal = VolnaTheme.tokens.spacing.xs, vertical = VolnaTheme.tokens.spacing.xxs),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
@@ -1127,6 +1244,40 @@ private fun NavItem(
 private fun RouteType.toUiText(): String = when (this) {
     RouteType.Novice -> "для новичков"
     RouteType.Experienced -> "для опытных"
+}
+
+private fun RouteType.toTagText(): String = when (this) {
+    RouteType.Novice -> "Новичковый"
+    RouteType.Experienced -> "Опытный"
+}
+
+private fun kotlinx.datetime.Instant.toSlotCardStartText(): String {
+    val dateTime = toLocalDateTime(TimeZone.currentSystemDefault())
+    val weekday = when (dateTime.dayOfWeek) {
+        DayOfWeek.MONDAY -> "Пн"
+        DayOfWeek.TUESDAY -> "Вт"
+        DayOfWeek.WEDNESDAY -> "Ср"
+        DayOfWeek.THURSDAY -> "Чт"
+        DayOfWeek.FRIDAY -> "Пт"
+        DayOfWeek.SATURDAY -> "Сб"
+        DayOfWeek.SUNDAY -> "Вс"
+    }
+    val month = when (dateTime.month) {
+        Month.JANUARY -> "января"
+        Month.FEBRUARY -> "февраля"
+        Month.MARCH -> "марта"
+        Month.APRIL -> "апреля"
+        Month.MAY -> "мая"
+        Month.JUNE -> "июня"
+        Month.JULY -> "июля"
+        Month.AUGUST -> "августа"
+        Month.SEPTEMBER -> "сентября"
+        Month.OCTOBER -> "октября"
+        Month.NOVEMBER -> "ноября"
+        Month.DECEMBER -> "декабря"
+    }
+    val minute = dateTime.minute.toString().padStart(2, '0')
+    return "$weekday, ${dateTime.dayOfMonth} $month · ${dateTime.hour}:$minute"
 }
 
 private fun kotlinx.datetime.Instant.toUiText(): String =
