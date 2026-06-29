@@ -1167,28 +1167,6 @@ private fun NavItem(
     )
 }
 
-@Composable
-private fun BookingsPlaceholder() {
-    Box(Modifier.fillMaxSize()) {
-        ScreenTitle("Мои записи")
-        Column(
-            modifier = Modifier
-                .width(VolnaTheme.tokens.sizing.contentWidth)
-                .offset(
-                    x = VolnaTheme.tokens.spacing.md,
-                    y = VolnaTheme.tokens.sizing.stateMessageY,
-                ),
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-        ) {
-            Text("Здесь появятся ваши прогулки", textAlign = TextAlign.Center)
-            Button(onClick = {}) {
-                Text("Записаться")
-            }
-        }
-    }
-}
-
 private fun RouteType.toUiText(): String = when (this) {
     RouteType.Novice -> "для новичков"
     RouteType.Experienced -> "для опытных"
