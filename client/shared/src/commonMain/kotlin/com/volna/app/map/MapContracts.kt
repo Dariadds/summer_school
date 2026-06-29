@@ -13,6 +13,24 @@ sealed interface MapUiState {
 
 interface MapLauncher {
     fun openYandexMaps(meetingPoint: MeetingPoint, route: Route?)
+    fun buildRouteTo(meetingPoint: MeetingPoint)
+}
+
+expect object PlatformMapLauncher : MapLauncher {
+    override fun openYandexMaps(meetingPoint: MeetingPoint, route: Route?)
+    override fun buildRouteTo(meetingPoint: MeetingPoint)
+}
+
+internal fun MeetingPoint.toYandexPointUrl(): String {
+    val lat = coordinates.lat
+    val lng = coordinates.lng
+    return "https://yandex.ru/maps/?pt=$lng,$lat&z=16&l=map"
+}
+
+internal fun MeetingPoint.toYandexRouteUrl(): String {
+    val lat = coordinates.lat
+    val lng = coordinates.lng
+    return "https://yandex.ru/maps/?rtext=~$lat,$lng&rtt=auto"
 }
 
 @Composable

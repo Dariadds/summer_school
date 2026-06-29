@@ -27,6 +27,7 @@ import com.volna.app.domain.model.RouteType
 fun RouteMapSheet(
     route: Route,
     meetingPoint: MeetingPoint,
+    mapLauncher: MapLauncher = PlatformMapLauncher,
     onDismiss: () -> Unit,
 ) {
     Box(
@@ -63,11 +64,23 @@ fun RouteMapSheet(
                 meetingPoint = meetingPoint,
                 state = route.toMapUiState(),
                 onRetry = {},
-                onOpenExternal = {},
+                onOpenExternal = { mapLauncher.openYandexMaps(meetingPoint, route) },
             )
             Text(route.name, fontWeight = FontWeight.Bold)
             Text("${route.type.toUiText()}, ${route.durationMin} мин")
             Text("Место встречи: ${meetingPoint.title.ifBlank { "уточняется" }}")
+            OutlinedButton(
+                onClick = { mapLauncher.buildRouteTo(meetingPoint) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Проложить маршрут")
+            }
+            OutlinedButton(
+                onClick = { mapLauncher.openYandexMaps(meetingPoint, route) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Открыть в Яндекс.Картах")
+            }
             OutlinedButton(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
