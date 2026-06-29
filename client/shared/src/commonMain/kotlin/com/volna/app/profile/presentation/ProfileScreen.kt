@@ -1,6 +1,7 @@
 package com.volna.app.profile.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,8 +32,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.volna.app.core.config.AppConfig
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.core.ui.Loadable
@@ -40,10 +43,15 @@ import com.volna.app.core.ui.Loadable
 @Composable
 fun ProfileScreen(
     state: ProfileState,
+    appConfig: AppConfig,
     onIntent: (ProfileIntent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val uriHandler = LocalUriHandler.current
+    val openExternalUrl: (String) -> Unit = { url ->
+        runCatching { uriHandler.openUri(url) }
+    }
 
     LaunchedEffect(Unit) {
         onIntent(ProfileIntent.Load)
@@ -84,8 +92,10 @@ fun ProfileScreen(
                 )
                 is Loadable.Content -> ProfileContent(
                     state = state,
+                    appConfig = appConfig,
                     clientName = profile.value.name.orEmpty(),
                     phone = profile.value.phone.value,
+                    onOpenExternalUrl = openExternalUrl,
                     onIntent = onIntent,
                 )
                 is Loadable.Error -> ProfileError(onRetry = { onIntent(ProfileIntent.Load) })
@@ -117,8 +127,10 @@ fun ProfileScreen(
 @Composable
 private fun ProfileContent(
     state: ProfileState,
+    appConfig: AppConfig,
     clientName: String,
     phone: String,
+    onOpenExternalUrl: (String) -> Unit,
     onIntent: (ProfileIntent) -> Unit,
 ) {
     Column(
@@ -134,8 +146,10 @@ private fun ProfileContent(
         when (state.mode) {
             ProfileMode.View -> ProfileViewContent(
                 state = state,
+                appConfig = appConfig,
                 clientName = clientName,
                 phone = phone,
+                onOpenExternalUrl = onOpenExternalUrl,
                 onIntent = onIntent,
             )
             ProfileMode.Edit -> ProfileEditContent(
@@ -153,8 +167,10 @@ private fun ProfileContent(
 @Composable
 private fun ProfileViewContent(
     state: ProfileState,
+    appConfig: AppConfig,
     clientName: String,
     phone: String,
+    onOpenExternalUrl: (String) -> Unit,
     onIntent: (ProfileIntent) -> Unit,
 ) {
     ProfileInfoRow(label = "Имя", value = clientName.ifBlank { "Имя не указано" })
@@ -169,7 +185,10 @@ private fun ProfileViewContent(
     ) {
         Text("Редактировать", fontWeight = FontWeight.Bold)
     }
-    ProfileLinks()
+    ProfileLinks(
+        appConfig = appConfig,
+        onOpenExternalUrl = onOpenExternalUrl,
+    )
     ProfileDangerActions(state = state, onIntent = onIntent)
 }
 
@@ -315,13 +334,25 @@ private fun ProfileInfoRow(
 }
 
 @Composable
-private fun ProfileLinks() {
+private fun ProfileLinks(
+    appConfig: AppConfig,
+    onOpenExternalUrl: (String) -> Unit,
+) {
+    // SCR-007 / AC-009: links are opened only when provided by app configuration.
     Column(
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
-        InfoLine("Правила клуба", "›")
-        InfoLine("Поддержка", "›")
-        InfoLine("Версия приложения", "1.0.0")
+        InfoLine(
+            label = "Правила клуба",
+            value = if (appConfig.rulesUrl != null) "›" else "не настроено",
+            onClick = appConfig.rulesUrl?.let { url -> { onOpenExternalUrl(url) } },
+        )
+        InfoLine(
+            label = "Поддержка",
+            value = if (appConfig.supportUrl != null) "›" else "не настроено",
+            onClick = appConfig.supportUrl?.let { url -> { onOpenExternalUrl(url) } },
+        )
+        InfoLine("Версия приложения", appConfig.appVersion)
     }
 }
 
@@ -362,9 +393,12 @@ private fun ProfileDangerActions(
 private fun InfoLine(
     label: String,
     value: String,
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

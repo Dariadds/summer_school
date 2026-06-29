@@ -68,6 +68,7 @@ import com.volna.app.catalog.presentation.SlotListIntent
 import com.volna.app.catalog.presentation.SlotListState
 import com.volna.app.catalog.presentation.SlotListStore
 import com.volna.app.catalog.presentation.SlotDatePreset
+import com.volna.app.core.config.AppConfig
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.network.VolnaApiClient
 import com.volna.app.core.storage.PlatformSessionStorage
@@ -120,7 +121,7 @@ private sealed interface BookingsRoute {
 }
 
 @Composable
-fun VolnaApp() {
+fun VolnaApp(appConfig: AppConfig = AppConfig()) {
     VolnaTheme {
         val appScope = rememberCoroutineScope()
         val clock = remember { SystemAppClock }
@@ -254,6 +255,7 @@ fun VolnaApp() {
                 pushPermissionState = pushPermissionState,
                 onPushPermissionIntent = pushPermissionStore::accept,
                 clock = clock,
+                appConfig = appConfig,
                 profileState = profileState,
                 onProfileIntent = profileStore::accept,
             )
@@ -297,6 +299,7 @@ private fun MainTabs(
     pushPermissionState: PushPermissionState,
     onPushPermissionIntent: (PushPermissionIntent) -> Unit,
     clock: AppClock,
+    appConfig: AppConfig,
     profileState: ProfileState,
     onProfileIntent: (ProfileIntent) -> Unit,
 ) {
@@ -370,6 +373,7 @@ private fun MainTabs(
                 }
                 MainTab.Profile -> ProfileScreen(
                     state = profileState,
+                    appConfig = appConfig,
                     onIntent = onProfileIntent,
                 )
             }
