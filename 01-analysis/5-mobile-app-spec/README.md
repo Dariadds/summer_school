@@ -30,7 +30,7 @@
 | BS-001 | Фильтры | Bottom Sheet | АЗ | High | [BS-001-filters.md](BS-001-filters.md) |
 | SCR-003 | Карточка слота | Экран | АЗ | Critical | [SCR-003-slot-card.md](SCR-003-slot-card.md) |
 | SCR-004 | Оформление записи | Экран | АЗ | Critical | [SCR-004-booking.md](SCR-004-booking.md) |
-| BS-002 | Подтверждение записи | Bottom Sheet | АЗ | High | [BS-002-booking-success.md](BS-002-booking-success.md) |
+| BS-002 | Подтверждение записи (экран успеха «Вы записаны») | Экран | АЗ | High | [BS-002-booking-success.md](BS-002-booking-success.md) |
 | SCR-005 | Мои бронирования | Экран | АЗ | Critical | [SCR-005-my-bookings.md](SCR-005-my-bookings.md) |
 | SCR-006 | Детали брони + отмена | Экран | АЗ | Critical | [SCR-006-booking-details.md](SCR-006-booking-details.md) |
 | BS-003 | Подтверждение отмены | Bottom Sheet | АЗ | High | [BS-003-cancel-confirm.md](BS-003-cancel-confirm.md) |
@@ -61,5 +61,12 @@
   `slots`, `bookings`, `instructors`). В ТЗ указываются точные `operationId`, метод и путь.
 - **Числа не хардкодятся:** потолки маршрутов, прокатный фонд, цены, лимиты приходят из
   данных слота/маршрута.
-- **Дизайн-макеты Figma** в исходной аналитике не зафиксированы (`—`); визуальный язык —
-  за дизайнером, ТЗ задают функционально-структурные требования.
+- **Дизайн-макеты Figma зафиксированы.** Источник — файл
+  [Figma «Волна приложение»](https://www.figma.com/design/ySEt0cjmRqmhdWyDlTpDM5/Волна-приложение?node-id=71-4857)
+  (file key `ySEt0cjmRqmhdWyDlTpDM5`, страница «Экраны»); в шапке каждого SCR-/BS-файла —
+  ссылка на конкретный node-id экрана. Сопоставление макетов с ТЗ и согласованные с заказчиком
+  решения по расхождениям — в отчёте-ревью [../3-design-brief/design-review.md](../3-design-brief/design-review.md)
+  (находки RR-D01…RR-D11). Числа по-прежнему не хардкодятся — берутся из данных слота/маршрута и
+  ответов API; макет фиксирует визуальный язык и компоновку, а не значения.
+- **BS-002 — экран успеха, не Bottom Sheet** (по дизайну, RR-D03): в макете это полноэкранное
+  «Вы записаны» с двумя кнопками. ID `BS-002` сохранён, чтобы не ломать ссылки; тип — «Экран».

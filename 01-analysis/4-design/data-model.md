@@ -49,6 +49,7 @@
 | :-- | :-- | :-- |
 | id | UUID (PK) | Идентификатор маршрута |
 | name | string | Название |
+| description | string? (nullable) | Описательный текст маршрута/прогулки для карточки слота (SCR-003). Опциональный; может отсутствовать или быть `null` |
 | type | enum (`novice`/`experienced`) | Тип: новичковый / опытный |
 | capacity_cap | int | Потолок мест (новичковый ≤8, опытный ≤12) |
 | duration_min | int | Длительность, мин (≈90–120) |
@@ -132,6 +133,7 @@ erDiagram
     Route {
         uuid id PK
         string name
+        string description
         enum type
         int capacity_cap
         int duration_min
