@@ -34,6 +34,7 @@ components:
         - type
         - capacity_cap
         - duration_min
+        - geometry
       properties:
         id:
           type: string
@@ -43,6 +44,15 @@ components:
           type: string
           description: Название маршрута.
           example: Острова и каналы
+        description:
+          type: string
+          nullable: true
+          description: >-
+            Описательный текст маршрута/прогулки для карточки слота (SCR-003, RR-D07).
+            Опционально; может отсутствовать или быть null.
+          example: >-
+            Спокойная прогулка по тихим каналам и протокам между островами — отлично
+            подойдёт новичкам.
         type:
           $ref: '#/components/schemas/RouteType'
         capacity_cap:

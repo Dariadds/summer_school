@@ -8,11 +8,14 @@ components:
       type: string
       description: >-
         Статус брони. late_cancel — поздняя отмена (менее 2 часов до начала):
-        место и доска НЕ освобождаются.
+        место и доска НЕ освобождаются. club_cancelled — «Отменена клубом»:
+        слот снят клубом (Slot.status = cancelled), бронь отменена не по
+        инициативе клиента, места и доски освобождаются (R-008).
       enum:
         - active
         - cancelled
         - late_cancel
+        - club_cancelled
 
     CreateBookingRequest:
       type: object
@@ -41,7 +44,11 @@ components:
 
     Booking:
       type: object
-      description: Полные данные брони для экрана деталей (SCR-006).
+      description: >-
+        Полные данные брони для экрана деталей (SCR-006). Тарифы (price за место,
+        rental_price за прокатную доску) и валюта лежат в booking.slot, а не на
+        верхнем уровне брони (R-005); на уровне брони присутствует только
+        производное итоговое поле price_total.
       required:
         - id
         - slot_id
@@ -80,7 +87,10 @@ components:
           $ref: '#/components/schemas/BookingStatus'
         price_total:
           type: integer
-          description: Производное поле в рублях (валюта RUB) = price·seats_count + rental_price·rental_count.
+          description: >-
+            Производное поле только для чтения, в рублях (валюта RUB) =
+            slot.price·seats_count + slot.rental_price·rental_count (R-005). Сами
+            тарифы price/rental_price берутся из booking.slot.
           readOnly: true
           example: 5800
         created_at:
@@ -92,8 +102,46 @@ components:
           format: date-time
           nullable: true
           description: Дата и время отмены, если бронь была отменена.
+        cancellation_reason:
+          type: string
+          nullable: true
+          readOnly: true
+          description: >-
+            Причина отмены брони. Заполняется при club_cancelled (текст причины от клуба, например «отмена по погоде»); для cancelled/late_cancel и active — null (R-008, R-025).
+          example: Отмена по погоде
         slot:
           $ref: '../slots/models.yaml#/components/schemas/Slot'
+
+    CreateBookingResponse:
+      type: object
+      description: >-
+        Ответ на создание брони (R-006). Полные данные брони (как Booking) плюс
+        признак первой брони клиента и параметры напоминания для конфигурации
+        push-уведомления.
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          required:
+            - is_first_booking
+          properties:
+            is_first_booking:
+              type: boolean
+              description: >-
+                true, если это первая успешная бронь клиента (для приветственного
+                сценария/онбординга на клиенте), R-006.
+              example: true
+            reminder_hours:
+              type: array
+              description: >-
+                За сколько часов до старта слота клиенту будут отправлены
+                напоминания (push). Используется клиентом для информирования
+                пользователя; пусто/отсутствует — напоминания не настроены (R-006).
+                Канонический MVP-набор — `[24, 2]` (за 24 ч и за 2 ч до старта,
+                согласовано с заказчиком 2026-06-25); значение задаётся сервером,
+                клиент его не хардкодит.
+              items:
+                type: integer
+              example: [24, 2]
 
     BookingSummary:
       type: object
@@ -131,7 +179,10 @@ components:
           $ref: '#/components/schemas/BookingStatus'
         price_total:
           type: integer
-          description: Производное поле в рублях (валюта RUB) = price·seats_count + rental_price·rental_count.
+          description: >-
+            Производное поле только для чтения, в рублях (валюта RUB) =
+            slot.price·seats_count + slot.rental_price·rental_count (R-005). Сами
+            тарифы price/rental_price берутся из booking.slot.
           readOnly: true
           example: 5800
         created_at:
@@ -143,6 +194,13 @@ components:
           format: date-time
           nullable: true
           description: Дата и время отмены, если бронь была отменена.
+        cancellation_reason:
+          type: string
+          nullable: true
+          readOnly: true
+          description: >-
+            Причина отмены брони. Заполняется при club_cancelled (текст причины от клуба, например «отмена по погоде»); для cancelled/late_cancel и active — null (R-008, R-025).
+          example: Отмена по погоде
         slot:
           $ref: '../slots/models.yaml#/components/schemas/SlotSummary'
 
