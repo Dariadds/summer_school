@@ -1,5 +1,8 @@
 package com.volna.app.domain.policy
 
+import com.volna.app.domain.model.Booking
+import com.volna.app.domain.model.BookingId
+import com.volna.app.domain.model.BookingStatus
 import com.volna.app.domain.model.GeoPoint
 import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.InstructorId
@@ -63,6 +66,25 @@ class DomainPolicyTest {
         )
 
         assertEquals(MoneyRub(5_800), total)
+    }
+
+    @Test
+    fun bookingPriceForExistingBookingIsDerivedFromSlotPrices() {
+        val booking = Booking(
+            id = BookingId("booking-1"),
+            slotId = SlotId("slot-1"),
+            clientId = null,
+            seatsCount = 3,
+            rentalCount = 2,
+            status = BookingStatus.Active,
+            priceTotal = MoneyRub(1),
+            createdAt = Instant.parse("2026-06-01T12:00:00Z"),
+            cancelledAt = null,
+            slot = slot(price = 2_000, rentalPrice = 500),
+            isFirstBooking = null,
+        )
+
+        assertEquals(MoneyRub(7_000), BookingPriceCalculator.calculate(booking))
     }
 
     @Test
