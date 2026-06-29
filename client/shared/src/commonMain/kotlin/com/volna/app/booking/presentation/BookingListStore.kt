@@ -24,12 +24,14 @@ data class BookingGroups(
 
 data class BookingListState(
     val bookings: Loadable<BookingGroups> = Loadable.Initial,
+    val message: String? = null,
 )
 
 sealed interface BookingListIntent {
     data object Load : BookingListIntent
     data object Refresh : BookingListIntent
     data object Retry : BookingListIntent
+    data object MessageShown : BookingListIntent
     data object Reset : BookingListIntent
 }
 
@@ -53,6 +55,7 @@ class BookingListStore(
             BookingListIntent.Load -> load(force = false)
             BookingListIntent.Refresh -> load(force = true)
             BookingListIntent.Retry -> load(force = true)
+            BookingListIntent.MessageShown -> mutableState.update { it.copy(message = null) }
             BookingListIntent.Reset -> mutableState.value = BookingListState()
         }
     }
@@ -71,6 +74,7 @@ class BookingListStore(
                     } else {
                         Loadable.Loading
                     },
+                    message = null,
                 )
             }
             bookingRepository.listBookings(page = PageRequest(limit = 100)).fold(
@@ -90,6 +94,13 @@ class BookingListStore(
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         effects.send(BookingListEffect.SignedOut)
+                    } else if (force && current is Loadable.Content) {
+                        mutableState.update {
+                            it.copy(
+                                bookings = current.copy(refreshing = false),
+                                message = "Не удалось обновить. Проверьте соединение и попробуйте снова.",
+                            )
+                        }
                     } else {
                         mutableState.update { it.copy(bookings = Loadable.Error(appFailure)) }
                     }

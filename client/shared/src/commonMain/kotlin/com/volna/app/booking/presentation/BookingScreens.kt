@@ -40,6 +40,7 @@ import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.map.RouteMapPreview
 import com.volna.app.map.toMapUiState
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.hours
 
@@ -54,6 +55,12 @@ fun BookingListScreen(
     LaunchedEffect(Unit) {
         onIntent(BookingListIntent.Load)
     }
+    LaunchedEffect(state.message) {
+        if (state.message != null) {
+            delay(2_500)
+            onIntent(BookingListIntent.MessageShown)
+        }
+    }
     Box(Modifier.fillMaxSize()) {
         BookingScreenTitle("Мои записи")
         when (val bookings = state.bookings) {
@@ -64,6 +71,8 @@ fun BookingListScreen(
             }
             is Loadable.Content -> BookingGroupsContent(
                 groups = bookings.value,
+                refreshing = bookings.refreshing,
+                message = state.message,
                 onBookingClick = onBookingClick,
                 onBookWalk = onBookWalk,
             )
@@ -145,6 +154,8 @@ fun BookingDetailsScreen(
 @Composable
 private fun BookingGroupsContent(
     groups: BookingGroups,
+    refreshing: Boolean,
+    message: String?,
     onBookingClick: (BookingId) -> Unit,
     onBookWalk: () -> Unit,
 ) {
@@ -155,6 +166,12 @@ private fun BookingGroupsContent(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
+        if (refreshing) {
+            Text("Обновляем записи...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        message?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
         BookingSection(
             title = "Предстоящие",
             bookings = groups.upcoming,
