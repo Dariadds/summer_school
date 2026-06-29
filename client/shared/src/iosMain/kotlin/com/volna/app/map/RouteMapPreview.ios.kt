@@ -8,9 +8,7 @@ import com.volna.app.domain.model.Route
 actual fun RouteMapPreview(
     route: Route,
     meetingPoint: MeetingPoint,
-    state: MapUiState,
-    onRetry: () -> Unit,
     onOpenExternal: () -> Unit,
 ) {
-    RouteMapPreviewFallback(route, meetingPoint, state, onRetry, onOpenExternal)
+    RouteMapPreviewFallback(route, meetingPoint, onOpenExternal)
 }

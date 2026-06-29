@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.volna.app.domain.model.MeetingPoint
-import com.volna.app.domain.model.Route
 
 actual object PlatformMapLauncher : MapLauncher {
     private var context: Context? = null
@@ -13,13 +12,18 @@ actual object PlatformMapLauncher : MapLauncher {
         this.context = context.applicationContext
     }
 
-    actual override fun openYandexMaps(meetingPoint: MeetingPoint, route: Route?) {
-        val pointUri = Uri.parse(meetingPoint.toYandexPointUrl())
+    actual override fun openExternalMap(meetingPoint: MeetingPoint) {
+        val lat = meetingPoint.coordinates.lat
+        val lng = meetingPoint.coordinates.lng
+        val label = Uri.encode(meetingPoint.title.ifBlank { "SUP meeting point" })
+        val pointUri = Uri.parse("geo:$lat,$lng?q=$lat,$lng($label)")
         open(pointUri)
     }
 
     actual override fun buildRouteTo(meetingPoint: MeetingPoint) {
-        val routeUri = Uri.parse(meetingPoint.toYandexRouteUrl())
+        val lat = meetingPoint.coordinates.lat
+        val lng = meetingPoint.coordinates.lng
+        val routeUri = Uri.parse("google.navigation:q=$lat,$lng")
         open(routeUri)
     }
 
@@ -31,4 +35,3 @@ actual object PlatformMapLauncher : MapLauncher {
         runCatching { appContext.startActivity(intent) }
     }
 }
-

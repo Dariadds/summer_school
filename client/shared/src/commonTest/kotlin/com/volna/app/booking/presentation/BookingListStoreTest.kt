@@ -24,7 +24,7 @@ import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.SlotStatus
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -34,7 +34,7 @@ import kotlin.test.assertIs
 
 class BookingListStoreTest {
     @Test
-    fun refreshFailureKeepsExistingBookingsAndShowsMessage() = runBlocking {
+    fun refreshFailureKeepsExistingBookingsAndShowsMessage() = runTest {
         val booking = booking(slotStartAt = Instant.parse("2026-07-01T12:00:00Z"))
         val repository = FakeBookingRepository(
             listResults = listOf(

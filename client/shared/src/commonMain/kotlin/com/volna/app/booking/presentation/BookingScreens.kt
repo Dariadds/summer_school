@@ -39,7 +39,6 @@ import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.map.RouteMapPreview
-import com.volna.app.map.toMapUiState
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.hours
@@ -293,8 +292,6 @@ private fun BookingDetailsContent(
                     RouteMapPreview(
                         route = slot.route,
                         meetingPoint = slot.meetingPoint,
-                        state = slot.route.toMapUiState(),
-                        onRetry = {},
                         onOpenExternal = { onIntent(BookingDetailsIntent.OpenRouteMap) },
                     )
                 }

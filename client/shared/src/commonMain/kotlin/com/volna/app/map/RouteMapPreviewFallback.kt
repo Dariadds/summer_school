@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -19,21 +18,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import com.volna.app.core.theme.VolnaTheme
-import com.volna.app.domain.model.GeoPoint
 import com.volna.app.domain.model.MeetingPoint
 import com.volna.app.domain.model.Route
-import kotlin.math.max
 
 @Composable
 fun RouteMapPreviewFallback(
     route: Route,
     meetingPoint: MeetingPoint,
-    state: MapUiState,
-    onRetry: () -> Unit,
     onOpenExternal: () -> Unit,
 ) {
     val spacing = VolnaTheme.tokens.spacing
-    val mapBackground = MaterialTheme.colorScheme.surfaceVariant
+    val waterColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+    val parkColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f)
+    val streetColor = MaterialTheme.colorScheme.surface
     val routeColor = MaterialTheme.colorScheme.primary
     val pinColor = MaterialTheme.colorScheme.error
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -43,54 +40,28 @@ fun RouteMapPreviewFallback(
         ) {
             Text(route.name, style = MaterialTheme.typography.titleMedium)
             Text(meetingPoint.title, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            when (state) {
-                MapUiState.Loading -> Text("Карта загружается")
-                MapUiState.Content -> {
-                    RouteMapSchematic(
-                        route = route,
-                        meetingPoint = meetingPoint,
-                        drawRoute = true,
-                        backgroundColor = mapBackground,
-                        routeColor = routeColor,
-                        pinColor = pinColor,
-                    )
-                }
-                MapUiState.GeometryMissing -> {
-                    RouteMapSchematic(
-                        route = route,
-                        meetingPoint = meetingPoint,
-                        drawRoute = false,
-                        backgroundColor = mapBackground,
-                        routeColor = routeColor,
-                        pinColor = pinColor,
-                    )
-                    Text("Маршрут на карте недоступен, место встречи указано текстом")
-                }
-                MapUiState.Error -> {
-                    Text("Не удалось загрузить карту")
-                    Button(onClick = onRetry) {
-                        Text("Обновить")
-                    }
-                }
-            }
+            MockRouteScreenshot(
+                waterColor = waterColor,
+                parkColor = parkColor,
+                streetColor = streetColor,
+                routeColor = routeColor,
+                pinColor = pinColor,
+            )
             OutlinedButton(onClick = onOpenExternal) {
-                Text("Открыть в Яндекс.Картах")
+                Text("Открыть в картах")
             }
         }
     }
 }
 
 @Composable
-private fun RouteMapSchematic(
-    route: Route,
-    meetingPoint: MeetingPoint,
-    drawRoute: Boolean,
-    backgroundColor: Color,
+private fun MockRouteScreenshot(
+    waterColor: Color,
+    parkColor: Color,
+    streetColor: Color,
     routeColor: Color,
     pinColor: Color,
 ) {
-    val routePoints = route.geometry?.points.orEmpty()
-    val visiblePoints = if (drawRoute) routePoints + meetingPoint.coordinates else listOf(meetingPoint.coordinates)
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
@@ -98,55 +69,58 @@ private fun RouteMapSchematic(
     ) {
         val corner = 16.dp.toPx()
         drawRoundRect(
-            color = backgroundColor,
+            color = waterColor,
             cornerRadius = CornerRadius(corner, corner),
         )
-        if (visiblePoints.isEmpty()) return@Canvas
-
-        val padding = 18.dp.toPx()
-        val bounds = visiblePoints.bounds()
-        fun GeoPoint.toOffset(): Offset {
-            val width = max(bounds.maxLng - bounds.minLng, 0.0001)
-            val height = max(bounds.maxLat - bounds.minLat, 0.0001)
-            val x = padding + ((lng - bounds.minLng) / width).toFloat() * (size.width - padding * 2)
-            val y = padding + ((bounds.maxLat - lat) / height).toFloat() * (size.height - padding * 2)
-            return Offset(x, y)
+        drawRoundRect(
+            color = parkColor,
+            topLeft = Offset(size.width * 0.58f, size.height * 0.08f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.32f, size.height * 0.34f),
+            cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
+        )
+        listOf(0.22f, 0.48f, 0.74f).forEach { y ->
+            drawLine(
+                color = streetColor,
+                start = Offset(12.dp.toPx(), size.height * y),
+                end = Offset(size.width - 12.dp.toPx(), size.height * (y - 0.08f)),
+                strokeWidth = 9.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
         }
-
-        if (drawRoute && routePoints.size > 1) {
-            routePoints.zipWithNext().forEach { (start, end) ->
-                drawLine(
-                    color = routeColor,
-                    start = start.toOffset(),
-                    end = end.toOffset(),
-                    strokeWidth = 5.dp.toPx(),
-                    cap = StrokeCap.Round,
-                )
-            }
+        listOf(0.18f, 0.42f, 0.68f).forEach { x ->
+            drawLine(
+                color = streetColor,
+                start = Offset(size.width * x, 12.dp.toPx()),
+                end = Offset(size.width * (x + 0.08f), size.height - 12.dp.toPx()),
+                strokeWidth = 7.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
         }
+        val routePoints = listOf(
+            Offset(size.width * 0.18f, size.height * 0.72f),
+            Offset(size.width * 0.34f, size.height * 0.48f),
+            Offset(size.width * 0.58f, size.height * 0.55f),
+            Offset(size.width * 0.78f, size.height * 0.28f),
+        )
+        routePoints.zipWithNext().forEach { (start, end) ->
+            drawLine(
+                color = routeColor,
+                start = start,
+                end = end,
+                strokeWidth = 5.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+        val pinCenter = routePoints.first()
         drawCircle(
             color = pinColor,
             radius = 7.dp.toPx(),
-            center = meetingPoint.coordinates.toOffset(),
+            center = pinCenter,
         )
         drawCircle(
             color = Color.White,
             radius = 3.dp.toPx(),
-            center = meetingPoint.coordinates.toOffset(),
+            center = pinCenter,
         )
     }
 }
-
-private data class GeoBounds(
-    val minLat: Double,
-    val maxLat: Double,
-    val minLng: Double,
-    val maxLng: Double,
-)
-
-private fun List<GeoPoint>.bounds(): GeoBounds = GeoBounds(
-    minLat = minOf { it.lat },
-    maxLat = maxOf { it.lat },
-    minLng = minOf { it.lng },
-    maxLng = maxOf { it.lng },
-)

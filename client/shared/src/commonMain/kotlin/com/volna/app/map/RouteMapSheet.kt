@@ -22,7 +22,7 @@ import com.volna.app.domain.model.MeetingPoint
 import com.volna.app.domain.model.Route
 import com.volna.app.domain.model.RouteType
 
-// BS-004 / LOGIC-006: route map sheet receives parent screen data and makes no API calls.
+// BS-004 / LOGIC-006: route map sheet shows a mock screenshot and hands off the meeting point to external maps.
 @Composable
 fun RouteMapSheet(
     route: Route,
@@ -62,9 +62,7 @@ fun RouteMapSheet(
             RouteMapPreview(
                 route = route,
                 meetingPoint = meetingPoint,
-                state = route.toMapUiState(),
-                onRetry = {},
-                onOpenExternal = { mapLauncher.openYandexMaps(meetingPoint, route) },
+                onOpenExternal = { mapLauncher.openExternalMap(meetingPoint) },
             )
             Text(route.name, fontWeight = FontWeight.Bold)
             Text("${route.type.toUiText()}, ${route.durationMin} мин")
@@ -76,10 +74,10 @@ fun RouteMapSheet(
                 Text("Проложить маршрут")
             }
             OutlinedButton(
-                onClick = { mapLauncher.openYandexMaps(meetingPoint, route) },
+                onClick = { mapLauncher.openExternalMap(meetingPoint) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Открыть в Яндекс.Картах")
+                Text("Открыть в картах")
             }
             OutlinedButton(
                 onClick = onDismiss,
@@ -89,12 +87,6 @@ fun RouteMapSheet(
             }
         }
     }
-}
-
-fun Route.toMapUiState(): MapUiState = if (geometry == null) {
-    MapUiState.GeometryMissing
-} else {
-    MapUiState.Content
 }
 
 private fun RouteType.toUiText(): String = when (this) {

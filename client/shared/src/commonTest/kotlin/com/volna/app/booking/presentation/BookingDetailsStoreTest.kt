@@ -25,7 +25,7 @@ import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.SlotStatus
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
 import kotlinx.datetime.Instant
 import kotlin.test.Test
@@ -35,7 +35,7 @@ import kotlin.test.assertIs
 
 class BookingDetailsStoreTest {
     @Test
-    fun slotStartedCancelFailureClosesSheetAndRefreshesBooking() = runBlocking {
+    fun slotStartedCancelFailureClosesSheetAndRefreshesBooking() = runTest {
         val booking = booking(
             status = BookingStatus.Active,
             slotStartAt = Instant.parse("2026-07-01T12:00:00Z"),

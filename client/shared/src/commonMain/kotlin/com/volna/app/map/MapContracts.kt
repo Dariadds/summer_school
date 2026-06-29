@@ -4,40 +4,34 @@ import androidx.compose.runtime.Composable
 import com.volna.app.domain.model.MeetingPoint
 import com.volna.app.domain.model.Route
 
-sealed interface MapUiState {
-    data object Loading : MapUiState
-    data object Content : MapUiState
-    data object GeometryMissing : MapUiState
-    data object Error : MapUiState
-}
-
 interface MapLauncher {
-    fun openYandexMaps(meetingPoint: MeetingPoint, route: Route?)
+    fun openExternalMap(meetingPoint: MeetingPoint)
     fun buildRouteTo(meetingPoint: MeetingPoint)
 }
 
 expect object PlatformMapLauncher : MapLauncher {
-    override fun openYandexMaps(meetingPoint: MeetingPoint, route: Route?)
+    override fun openExternalMap(meetingPoint: MeetingPoint)
     override fun buildRouteTo(meetingPoint: MeetingPoint)
 }
 
-internal fun MeetingPoint.toYandexPointUrl(): String {
+internal fun MeetingPoint.toExternalPointUrl(): String {
     val lat = coordinates.lat
     val lng = coordinates.lng
-    return "https://yandex.ru/maps/?pt=$lng,$lat&z=16&l=map"
+    return "https://maps.apple.com/?ll=$lat,$lng&q=${title.toMapQuery()}"
 }
 
-internal fun MeetingPoint.toYandexRouteUrl(): String {
+internal fun MeetingPoint.toExternalRouteUrl(): String {
     val lat = coordinates.lat
     val lng = coordinates.lng
-    return "https://yandex.ru/maps/?rtext=~$lat,$lng&rtt=auto"
+    return "https://maps.apple.com/?daddr=$lat,$lng&q=${title.toMapQuery()}"
 }
+
+private fun String.toMapQuery(): String =
+    trim().ifBlank { "SUP meeting point" }.replace(" ", "+")
 
 @Composable
 expect fun RouteMapPreview(
     route: Route,
     meetingPoint: MeetingPoint,
-    state: MapUiState,
-    onRetry: () -> Unit,
     onOpenExternal: () -> Unit,
 )
