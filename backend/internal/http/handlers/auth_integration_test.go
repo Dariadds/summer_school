@@ -95,7 +95,7 @@ func TestAuthRequestCodeReturnsDemoCode(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode request code response: %v", err)
 	}
-	if len(response.Code) != 6 || response.TTLSeconds != 300 || response.ResendAfterSeconds != 60 {
+	if len(response.Code) != 4 || response.TTLSeconds != 300 || response.ResendAfterSeconds != 60 {
 		t.Fatalf("unexpected response: %+v", response)
 	}
 }

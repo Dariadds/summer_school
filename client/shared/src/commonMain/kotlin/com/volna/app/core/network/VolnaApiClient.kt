@@ -4,22 +4,15 @@ import com.volna.app.auth.SessionRepository
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.AppFailureException
 import com.volna.app.core.logging.AppLogger
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.header
-import io.ktor.client.request.request
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.io.IOException
 import kotlinx.serialization.SerializationException
@@ -119,7 +112,12 @@ class VolnaApiClient(
                 json(json)
             }
             install(Logging) {
-                level = LogLevel.BODY
+                logger = object : Logger {
+                    override fun log(message: String) {
+                        AppLogger.d(message)
+                    }
+                }
+                level = LogLevel.ALL
                 sanitizeHeader { header -> header == HttpHeaders.Authorization }
             }
             install(HttpTimeout) {

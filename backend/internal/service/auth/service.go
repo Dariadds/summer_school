@@ -22,7 +22,10 @@ var (
 	codePattern        = regexp.MustCompile(`^\d{4,6}$`)
 )
 
-const loginPurpose = "login"
+const (
+	loginPurpose  = "login"
+	otpCodeLength = 4
+)
 
 type Client struct {
 	ID        string
@@ -102,7 +105,7 @@ func (s *Service) RequestCode(ctx context.Context, phone string) (RequestCodeRes
 		return RequestCodeResult{}, ErrTooManyRequests
 	}
 
-	code, err := randomDigits(6)
+	code, err := randomDigits(otpCodeLength)
 	if err != nil {
 		return RequestCodeResult{}, err
 	}

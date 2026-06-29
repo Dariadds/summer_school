@@ -166,8 +166,8 @@ func TestProfilePhoneRequestCodeReturnsDemoCode(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if len(response.Code) != 6 {
-		t.Fatalf("code = %q, want 6 digits", response.Code)
+	if len(response.Code) != 4 {
+		t.Fatalf("code = %q, want 4 digits", response.Code)
 	}
 }
 

@@ -25,7 +25,10 @@ var (
 	codePattern        = regexp.MustCompile(`^\d{4,6}$`)
 )
 
-const phoneChangePurpose = "phone_change"
+const (
+	phoneChangePurpose = "phone_change"
+	otpCodeLength      = 4
+)
 
 type Client = auth.Client
 
@@ -122,7 +125,7 @@ func (s *Service) RequestPhoneChangeCode(ctx context.Context, token, newPhone st
 		return RequestPhoneCodeResult{}, ErrTooManyRequests
 	}
 
-	code, err := randomDigits(6)
+	code, err := randomDigits(otpCodeLength)
 	if err != nil {
 		return RequestPhoneCodeResult{}, err
 	}
