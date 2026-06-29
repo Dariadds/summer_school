@@ -1,5 +1,6 @@
 package com.volna.app.booking.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -21,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -694,16 +696,34 @@ private fun CancelConfirmSheet(
     onIntent: (BookingDetailsIntent) -> Unit,
 ) {
     val kind = state.cancellationKind(clock)
+    val messageText = when (kind) {
+        CancellationKind.Early -> "До старта больше 2 часов. Запись будет отменена, места и прокатные доски снова станут доступны."
+        CancellationKind.Late -> "До старта осталось менее 2 часов. Запись будет отменена. Штраф за позднюю отмену не взимается."
+        CancellationKind.UnavailableAfterStart,
+        null -> "Прогулка уже началась. Отмена записи недоступна."
+    }
+    val cancellationLabel = when (kind) {
+        CancellationKind.Early -> "Ранняя отмена"
+        CancellationKind.Late -> "Поздняя отмена"
+        CancellationKind.UnavailableAfterStart,
+        null -> "Отмена недоступна"
+    }
+    val cancellationHint = when (kind) {
+        CancellationKind.Early -> "Места и прокатные доски освободятся."
+        CancellationKind.Late -> "Ваша запись отменена. Штраф не взимается."
+        CancellationKind.UnavailableAfterStart,
+        null -> "Запись останется активной."
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+            .background(Color.Black.copy(alpha = 0.6f))
             .clickable(enabled = !state.isCancelling) { onIntent(BookingDetailsIntent.DismissCancel) },
         contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
     ) {
         Column(
             modifier = Modifier
-                .width(VolnaTheme.tokens.sizing.contentWidth)
+                .fillMaxWidth()
                 .clickable {}
                 .shadow(
                     elevation = VolnaTheme.tokens.spacing.sm,
@@ -720,35 +740,103 @@ private fun CancelConfirmSheet(
                     ),
                 )
                 .verticalScroll(rememberScrollState())
-                .padding(VolnaTheme.tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+                .padding(
+                    start = VolnaTheme.tokens.spacing.md,
+                    end = VolnaTheme.tokens.spacing.md,
+                    bottom = VolnaTheme.tokens.spacing.md,
+                ),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
         ) {
-            Text("Отменить запись?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(
-                text = when (kind) {
-                    CancellationKind.Early -> "До старта больше 2 часов: места и прокатные доски освободятся."
-                    CancellationKind.Late -> "До старта меньше 2 часов: место не освободится, штрафов нет."
-                    else -> "Отмена уже недоступна."
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Box(
+                modifier = Modifier
+                    .padding(top = VolnaTheme.tokens.spacing.xs)
+                    .size(width = 40.dp, height = 4.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                    ),
             )
+            Text(
+                text = "Отменить запись?",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = messageText,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = Color(0xFFF2F2F2),
+                        shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                    )
+                    .padding(VolnaTheme.tokens.spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+            ) {
+                Text(
+                    text = cancellationLabel,
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(VolnaTheme.tokens.radius.md),
+                        )
+                        .padding(horizontal = VolnaTheme.tokens.spacing.sm, vertical = VolnaTheme.tokens.spacing.xxs),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = cancellationHint,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
             state.message?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = it,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
             Button(
                 onClick = { onIntent(BookingDetailsIntent.ConfirmCancel) },
                 enabled = !state.isCancelling && kind != CancellationKind.UnavailableAfterStart,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             ) {
                 Text(if (state.isCancelling) "Отменяем..." else "Подтвердить отмену")
             }
-            OutlinedButton(
+            Button(
                 onClick = { onIntent(BookingDetailsIntent.DismissCancel) },
                 enabled = !state.isCancelling,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
             ) {
                 Text("Не отменять")
             }
+            Spacer(Modifier.height(VolnaTheme.tokens.spacing.md))
         }
     }
 }
