@@ -97,6 +97,7 @@ import com.volna.app.profile.presentation.ProfileIntent
 import com.volna.app.profile.presentation.ProfileScreen
 import com.volna.app.profile.presentation.ProfileState
 import com.volna.app.profile.presentation.ProfileStore
+import kotlinx.coroutines.launch
 
 private enum class MainTab(val title: String) {
     Slots("Прогулки"),
@@ -161,6 +162,9 @@ fun VolnaApp(appConfig: AppConfig = AppConfig()) {
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
 
         fun resetToAuth() {
+            appScope.launch {
+                sessionRepository.clearToken()
+            }
             authStore.accept(AuthIntent.Reset)
             profileStore.accept(ProfileIntent.Reset)
             slotListStore.accept(SlotListIntent.Reset)
