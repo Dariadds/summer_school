@@ -345,12 +345,14 @@ private fun CancelConfirmSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f)),
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+            .clickable(enabled = !state.isCancelling) { onIntent(BookingDetailsIntent.DismissCancel) },
         contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
     ) {
         Column(
             modifier = Modifier
                 .width(VolnaTheme.tokens.sizing.contentWidth)
+                .clickable {}
                 .shadow(
                     elevation = VolnaTheme.tokens.spacing.sm,
                     shape = RoundedCornerShape(
@@ -365,6 +367,7 @@ private fun CancelConfirmSheet(
                         topEnd = VolnaTheme.tokens.radius.lg,
                     ),
                 )
+                .verticalScroll(rememberScrollState())
                 .padding(VolnaTheme.tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         ) {
@@ -372,7 +375,7 @@ private fun CancelConfirmSheet(
             Text(
                 text = when (kind) {
                     CancellationKind.Early -> "До старта больше 2 часов: места и прокатные доски освободятся."
-                    CancellationKind.Late -> "До старта меньше 2 часов: запись станет поздней отменой, место не освободится."
+                    CancellationKind.Late -> "До старта меньше 2 часов: место не освободится, штрафов нет."
                     else -> "Отмена уже недоступна."
                 },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

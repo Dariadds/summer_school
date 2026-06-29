@@ -1,6 +1,7 @@
 package com.volna.app.booking.presentation
 
 import com.volna.app.booking.BookingRepository
+import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
 import com.volna.app.core.mvi.MviStore
@@ -128,10 +129,42 @@ class BookingDetailsStore(
                     effects.send(BookingDetailsEffect.BookingChanged)
                 },
                 onFailure = { failure ->
-                    handleFailure(failure.asAppFailure(), contentFallback = booking)
+                    handleCancelFailure(failure.asAppFailure(), booking)
                 },
             )
         }
+    }
+
+    private suspend fun handleCancelFailure(appFailure: AppFailure, booking: Booking) {
+        if (appFailure is AppFailure.Api &&
+            (appFailure.code == ApiErrorCode.SlotStarted || appFailure.code == ApiErrorCode.AlreadyCancelled)
+        ) {
+            val message = appFailure.toUserMessage()
+            mutableState.update {
+                it.copy(
+                    cancelStatus = ActionStatus.Idle,
+                    showCancelConfirm = false,
+                    message = message,
+                )
+            }
+            bookingRepository.getBooking(booking.id).fold(
+                onSuccess = { updatedBooking ->
+                    mutableState.update {
+                        it.copy(
+                            booking = Loadable.Content(updatedBooking),
+                            message = message,
+                        )
+                    }
+                    effects.send(BookingDetailsEffect.BookingChanged)
+                },
+                onFailure = { refreshFailure ->
+                    handleFailure(refreshFailure.asAppFailure(), contentFallback = null)
+                },
+            )
+            return
+        }
+
+        handleFailure(appFailure, contentFallback = booking)
     }
 
     private suspend fun handleFailure(appFailure: AppFailure, contentFallback: Booking?) {
@@ -180,14 +213,18 @@ fun BookingDetailsState.cancellationKind(clock: AppClock): CancellationKind? {
 }
 
 private fun Booking.cancelSuccessMessage(): String = when (status) {
-    BookingStatus.LateCancel -> "Поздняя отмена: место не освобождено. Штраф не взимается."
+    BookingStatus.LateCancel -> "Поздняя отмена: место не освобождено (правило 2 часов). Штраф не взимается."
     else -> "Бронь отменена"
 }
 
 private fun AppFailure.toUserMessage(): String = when (this) {
-    AppFailure.NetworkUnavailable -> "Нет соединения. Проверьте интернет и попробуйте снова"
-    AppFailure.Timeout -> "Сервер не ответил вовремя. Попробуйте ещё раз"
+    AppFailure.NetworkUnavailable,
+    AppFailure.Timeout -> "Не удалось загрузить. Проверьте соединение и попробуйте снова."
     AppFailure.Unknown -> "Не удалось отменить запись"
     AppFailure.Unauthorized -> "Сессия истекла"
-    is AppFailure.Api -> message
+    is AppFailure.Api -> when (code) {
+        ApiErrorCode.SlotStarted -> "Слот уже стартовал — отмена недоступна."
+        ApiErrorCode.AlreadyCancelled -> "Запись уже отменена."
+        else -> message
+    }
 }
