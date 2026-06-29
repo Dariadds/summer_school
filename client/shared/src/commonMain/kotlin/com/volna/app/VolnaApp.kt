@@ -1282,8 +1282,22 @@ private fun BookingFormScreen(
         onIntent(BookingFormIntent.Open(slot))
     }
     Box(Modifier.fillMaxSize()) {
-        BackButton(onBack)
-        ScreenTitle("Запись")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = VolnaTheme.tokens.spacing.md)
+                .offset(y = 74.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
+        ) {
+            CircleActionButton(text = "‹", onClick = onBack)
+            Text(
+                text = "Оформление записи",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
         BookingFormContent(
             state = state,
             onIntent = onIntent,
@@ -1304,51 +1318,59 @@ private fun BookingFormContent(
     state: BookingFormState,
     onIntent: (BookingFormIntent) -> Unit,
 ) {
+    val slot = state.slot
+    val maxSeats = state.availability?.maxSeatsForBooking ?: 1
+    val seatPrice = slot?.price?.value ?: 0
+    val rentalPrice = slot?.rentalPrice?.value ?: 0
+    val seatsTotal = seatPrice * state.seatsCount
+    val rentalTotal = rentalPrice * state.rentalCount
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
             .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.lg),
     ) {
-        state.slot?.let { slot ->
-            Text(slot.route.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(slot.startAt.toUiText(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        slot?.let {
+            BookingSlotSummaryCard(it)
         }
-        CounterRow(
-            title = "Места",
+        BookingSeatsCard(
             value = state.seatsCount,
+            maxSeats = maxSeats,
             onMinus = { onIntent(BookingFormIntent.DecrementSeats) },
             onPlus = { onIntent(BookingFormIntent.IncrementSeats) },
         )
-        CounterRow(
-            title = "Прокатные доски",
-            value = state.rentalCount,
-            onMinus = { onIntent(BookingFormIntent.DecrementRental) },
-            onPlus = { onIntent(BookingFormIntent.IncrementRental) },
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
-                )
-                .padding(VolnaTheme.tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
-        ) {
-            Text("Итого", fontWeight = FontWeight.Bold)
-            Text("${state.totalPrice?.value ?: 0} ₽", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                text = "Оплата на месте: наличные или перевод на карту.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        if (slot != null) {
+            BookingBoardsSection(
+                seatsCount = state.seatsCount,
+                rentalCount = state.rentalCount,
+                freeRentalBoards = slot.freeRentalBoards,
+                onTargetRentalCount = { target ->
+                    when {
+                        target > state.rentalCount -> repeat(target - state.rentalCount) {
+                            onIntent(BookingFormIntent.IncrementRental)
+                        }
+                        target < state.rentalCount -> repeat(state.rentalCount - target) {
+                            onIntent(BookingFormIntent.DecrementRental)
+                        }
+                    }
+                },
             )
-            state.validationMessage?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
-            }
-            state.message?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
-            }
+        }
+        BookingPriceDetails(
+            seatsCount = state.seatsCount,
+            rentalCount = state.rentalCount,
+            seatPrice = seatPrice,
+            rentalPrice = rentalPrice,
+            seatsTotal = seatsTotal,
+            rentalTotal = rentalTotal,
+            total = state.totalPrice?.value ?: 0,
+        )
+        state.validationMessage?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
+        state.message?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
         }
         Button(
             onClick = { onIntent(BookingFormIntent.Submit) },
@@ -1356,10 +1378,277 @@ private fun BookingFormContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(VolnaTheme.tokens.sizing.buttonHeight),
+            shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
         ) {
-            Text(if (state.isSubmitting) "Записываем..." else "Записаться")
+            Text(if (state.isSubmitting) "Записываем..." else "Записаться", fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight))
+        Box(
+            modifier = Modifier
+                .width(138.dp)
+                .height(4.dp)
+                .align(androidx.compose.ui.Alignment.CenterHorizontally)
+                .background(Color(0xFFCCCCCC), RoundedCornerShape(VolnaTheme.tokens.radius.pill)),
+        )
+        Spacer(Modifier.height(VolnaTheme.tokens.spacing.xs))
+    }
+}
+
+@Composable
+private fun BookingSlotSummaryCard(slot: Slot) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
+            )
+            .padding(VolnaTheme.tokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        Text(
+            text = slot.startAt.toSlotCardStartText(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+            SlotTag(text = slot.route.type.toTagText(), color = Color(0xFF92FF9A))
+            SlotTag(
+                text = slot.route.name,
+                color = Color(0xFFFFF897),
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            SlotTag(
+                text = "Инструктор: ${slot.instructor.name}",
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BookingSeatsCard(
+    value: Int,
+    maxSeats: Int,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
+            )
+            .padding(VolnaTheme.tokens.spacing.md),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        Text(
+            text = "Число мест",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            BookingCounterButton("−", onMinus)
+            Text(
+                text = value.toString(),
+                modifier = Modifier
+                    .width(52.dp)
+                    .height(54.dp)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(VolnaTheme.tokens.radius.lg))
+                    .padding(top = 16.dp),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            BookingCounterButton("+", onPlus)
+        }
+        Text(
+            text = "Можно записать до $maxSeats мест",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun BookingCounterButton(
+    text: String,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .size(54.dp)
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(VolnaTheme.tokens.radius.lg))
+            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(VolnaTheme.tokens.radius.lg))
+            .clickable { onClick() }
+            .padding(top = 12.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+}
+
+@Composable
+private fun BookingBoardsSection(
+    seatsCount: Int,
+    rentalCount: Int,
+    freeRentalBoards: Int,
+    onTargetRentalCount: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm)) {
+        Text(
+            text = "Доска для каждого места",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        repeat(seatsCount) { index ->
+            val seatNumber = index + 1
+            val rentalSelected = seatNumber <= rentalCount
+            BookingBoardRow(
+                label = if (seatNumber == 1) "Место 1 (вы)" else "Место $seatNumber (гость)",
+                rentalSelected = rentalSelected,
+                rentalEnabled = seatNumber <= freeRentalBoards,
+                onOwn = { onTargetRentalCount((seatNumber - 1).coerceAtLeast(0)) },
+                onRental = { onTargetRentalCount(seatNumber.coerceAtMost(freeRentalBoards)) },
+            )
+        }
+        Text(
+            text = "Прокатных выбрано: $rentalCount из $freeRentalBoards",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun BookingBoardRow(
+    label: String,
+    rentalSelected: Boolean,
+    rentalEnabled: Boolean,
+    onOwn: () -> Unit,
+    onRental: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(20.dp),
+            )
+            .padding(VolnaTheme.tokens.spacing.sm),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(
+            modifier = Modifier
+                .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(VolnaTheme.tokens.radius.lg))
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(VolnaTheme.tokens.radius.lg)),
+        ) {
+            BoardSegment(
+                text = "Своя",
+                selected = !rentalSelected,
+                onClick = onOwn,
+            )
+            BoardSegment(
+                text = "Прокатная",
+                selected = rentalSelected,
+                enabled = rentalEnabled,
+                onClick = onRental,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BoardSegment(
+    text: String,
+    selected: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .width(100.dp)
+            .height(44.dp)
+            .background(
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+            )
+            .clickable(enabled = enabled) { onClick() }
+            .padding(top = 12.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.bodyMedium,
+        color = when {
+            selected -> MaterialTheme.colorScheme.onPrimary
+            enabled -> MaterialTheme.colorScheme.onSurface
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+    )
+}
+
+@Composable
+private fun BookingPriceDetails(
+    seatsCount: Int,
+    rentalCount: Int,
+    seatPrice: Int,
+    rentalPrice: Int,
+    seatsTotal: Int,
+    rentalTotal: Int,
+    total: Int,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(0.dp))
+            .padding(top = VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        BookingPriceRow("Места: $seatPrice ₽ × $seatsCount", "$seatsTotal ₽")
+        BookingPriceRow("Прокат: $rentalPrice ₽ × $rentalCount", "$rentalTotal ₽")
+        BookingPriceRow("Итого", "$total ₽", bold = true)
+    }
+}
+
+@Composable
+private fun BookingPriceRow(
+    label: String,
+    value: String,
+    bold: Boolean = false,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            color = if (bold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            color = if (bold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
