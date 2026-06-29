@@ -1,6 +1,7 @@
 package com.volna.app.booking.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,10 +25,18 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.time.AppClock
 import com.volna.app.core.ui.Loadable
@@ -40,7 +49,11 @@ import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.map.RouteMapPreview
 import kotlinx.coroutines.delay
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.Instant
+import kotlinx.datetime.Month
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.hours
 
 // CMP-12 / SCR-005: minimal "Мои записи" screen backed by BookingListStore.
@@ -158,12 +171,17 @@ private fun BookingGroupsContent(
     onBookingClick: (BookingId) -> Unit,
     onBookWalk: () -> Unit,
 ) {
+    var selectedTab by remember { mutableStateOf(BookingListTab.Upcoming) }
+    val visibleBookings = when (selectedTab) {
+        BookingListTab.Upcoming -> groups.upcoming
+        BookingListTab.Past -> groups.past
+    }
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
             .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
     ) {
         if (refreshing) {
             Text("Обновляем записи...", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -171,59 +189,111 @@ private fun BookingGroupsContent(
         message?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
         }
-        BookingSection(
-            title = "Предстоящие",
-            bookings = groups.upcoming,
-            pastGroup = false,
-            emptyTitle = "Пока нет предстоящих записей",
-            emptyDescription = "Можно выбрать ближайшую прогулку",
-            onBookingClick = onBookingClick,
-            onBookWalk = onBookWalk,
+        BookingTabs(
+            selected = selectedTab,
+            onSelected = { selectedTab = it },
         )
-        BookingSection(
-            title = "Прошедшие",
-            bookings = groups.past,
-            pastGroup = true,
-            emptyTitle = "Здесь появятся прошедшие прогулки",
-            emptyDescription = "Отменённые записи тоже будут здесь",
-            onBookingClick = onBookingClick,
-            onBookWalk = onBookWalk,
+        if (visibleBookings.isEmpty()) {
+            BookingEmptyCard(
+                title = if (selectedTab == BookingListTab.Upcoming) {
+                    "Пока нет предстоящих записей"
+                } else {
+                    "Здесь появятся прошедшие прогулки"
+                },
+                description = if (selectedTab == BookingListTab.Upcoming) {
+                    "Можно выбрать ближайшую прогулку"
+                } else {
+                    "Отменённые записи тоже будут здесь"
+                },
+                onBookWalk = onBookWalk,
+            )
+        } else {
+            visibleBookings.forEach { booking ->
+                BookingCard(
+                    booking = booking,
+                    pastGroup = selectedTab == BookingListTab.Past,
+                    onClick = { onBookingClick(booking.id) },
+                )
+            }
+        }
+        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight + VolnaTheme.tokens.spacing.xl))
+    }
+}
+
+private enum class BookingListTab {
+    Upcoming,
+    Past,
+}
+
+@Composable
+private fun BookingTabs(
+    selected: BookingListTab,
+    onSelected: (BookingListTab) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(VolnaTheme.tokens.radius.pill))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(VolnaTheme.tokens.radius.pill)),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        BookingTabButton(
+            text = "Предстоящие",
+            selected = selected == BookingListTab.Upcoming,
+            onClick = { onSelected(BookingListTab.Upcoming) },
         )
-        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight))
+        BookingTabButton(
+            text = "Прошедшие",
+            selected = selected == BookingListTab.Past,
+            onClick = { onSelected(BookingListTab.Past) },
+        )
     }
 }
 
 @Composable
-private fun BookingSection(
+private fun BookingTabButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .width(180.dp)
+            .height(40.dp)
+            .background(
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+            )
+            .clickable { onClick() }
+            .padding(top = 10.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+    )
+}
+
+@Composable
+private fun BookingEmptyCard(
     title: String,
-    bookings: List<Booking>,
-    pastGroup: Boolean,
-    emptyTitle: String,
-    emptyDescription: String,
-    onBookingClick: (BookingId) -> Unit,
+    description: String,
     onBookWalk: () -> Unit,
 ) {
-    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    if (bookings.isEmpty()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
-                )
-                .padding(VolnaTheme.tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
-        ) {
-            Text(emptyTitle, fontWeight = FontWeight.Bold)
-            Text(emptyDescription, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = onBookWalk, modifier = Modifier.fillMaxWidth()) {
-                Text("Записаться")
-            }
-        }
-    } else {
-        bookings.forEach { booking ->
-            BookingCard(booking = booking, pastGroup = pastGroup, onClick = { onBookingClick(booking.id) })
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
+            )
+            .padding(VolnaTheme.tokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+    ) {
+        Text(title, fontWeight = FontWeight.Bold)
+        Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(onClick = onBookWalk, modifier = Modifier.fillMaxWidth()) {
+            Text("Записаться")
         }
     }
 }
@@ -234,29 +304,118 @@ private fun BookingCard(
     pastGroup: Boolean,
     onClick: () -> Unit,
 ) {
+    val slot = booking.slot
+    val status = booking.statusLabel(pastGroup = pastGroup)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
             )
             .padding(VolnaTheme.tokens.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
-        Text(booking.slot?.startAt?.toUiText() ?: "Время уточняется", fontWeight = FontWeight.Bold)
-        Text(booking.slot?.route?.name ?: "Маршрут уточняется")
-        Text("Инструктор: ${booking.slot?.instructor?.name ?: "уточняется"}")
-        Text("${booking.seatsCount} мест · ${booking.rentalCount} прокатных")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("${BookingPriceCalculator.calculate(booking)?.value ?: 0} ₽", fontWeight = FontWeight.Bold)
-            Text(booking.statusLabel(pastGroup = pastGroup), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        BookingPreviewPhoto()
+        Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+                slot?.let {
+                    BookingTag(text = it.route.type.toTagText(), color = Color(0xFF92FF9A))
+                    BookingTag(
+                        text = it.route.name,
+                        color = Color(0xFFFFF897),
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+            }
+            Text(
+                text = slot?.startAt?.toBookingCardStartText() ?: "Время уточняется",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
+        Text(
+            text = "Инструктор: ${slot?.instructor?.name ?: "уточняется"}",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${booking.seatsCount} ${booking.seatsCount.pluralPlaces()} · ${booking.rentalCount} ${booking.rentalCount.pluralRentalBoards()}",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "${BookingPriceCalculator.calculate(booking)?.value ?: 0} ₽",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        BookingStatusBadge(status)
     }
+}
+
+@Composable
+private fun BookingPreviewPhoto() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp)
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color(0xFFD8EEF0), Color(0xFFF7F0D8), Color(0xFFCFE4E8)),
+                ),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+            ),
+    )
+}
+
+@Composable
+private fun BookingTag(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        modifier = modifier
+            .background(color, RoundedCornerShape(VolnaTheme.tokens.radius.sm))
+            .padding(horizontal = VolnaTheme.tokens.spacing.xs, vertical = VolnaTheme.tokens.spacing.xxs),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun BookingStatusBadge(status: String) {
+    val active = status == "Активна"
+    Text(
+        text = status,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .background(
+                color = if (active) Color(0xFFE4FFE5) else MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+            )
+            .padding(top = 9.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (active) Color(0xFF007108) else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -491,8 +650,55 @@ private fun RouteType.toUiText(): String = when (this) {
     RouteType.Experienced -> "для опытных"
 }
 
+private fun RouteType.toTagText(): String = when (this) {
+    RouteType.Novice -> "Новичковый"
+    RouteType.Experienced -> "Опытный"
+}
+
 private fun cancelDeadlineText(booking: Booking): String =
     "Бесплатно освободить место можно до ${booking.slot?.startAt?.minus(2.hours)?.toUiText() ?: "уточняется"}"
+
+private fun Instant.toBookingCardStartText(): String {
+    val dateTime = toLocalDateTime(TimeZone.currentSystemDefault())
+    val weekday = when (dateTime.dayOfWeek) {
+        DayOfWeek.MONDAY -> "Пн"
+        DayOfWeek.TUESDAY -> "Вт"
+        DayOfWeek.WEDNESDAY -> "Ср"
+        DayOfWeek.THURSDAY -> "Чт"
+        DayOfWeek.FRIDAY -> "Пт"
+        DayOfWeek.SATURDAY -> "Сб"
+        DayOfWeek.SUNDAY -> "Вс"
+    }
+    val minute = dateTime.minute.toString().padStart(2, '0')
+    return "$weekday, ${dateTime.dayOfMonth} ${dateTime.month.toMonthName()} · ${dateTime.hour}:$minute"
+}
+
+private fun Month.toMonthName(): String = when (this) {
+    Month.JANUARY -> "января"
+    Month.FEBRUARY -> "февраля"
+    Month.MARCH -> "марта"
+    Month.APRIL -> "апреля"
+    Month.MAY -> "мая"
+    Month.JUNE -> "июня"
+    Month.JULY -> "июля"
+    Month.AUGUST -> "августа"
+    Month.SEPTEMBER -> "сентября"
+    Month.OCTOBER -> "октября"
+    Month.NOVEMBER -> "ноября"
+    Month.DECEMBER -> "декабря"
+}
+
+private fun Int.pluralPlaces(): String = when {
+    this % 10 == 1 && this % 100 != 11 -> "место"
+    this % 10 in 2..4 && this % 100 !in 12..14 -> "места"
+    else -> "мест"
+}
+
+private fun Int.pluralRentalBoards(): String = when {
+    this % 10 == 1 && this % 100 != 11 -> "прокатная доска"
+    this % 10 in 2..4 && this % 100 !in 12..14 -> "прокатные доски"
+    else -> "прокатных досок"
+}
 
 private fun Instant.toUiText(): String =
     toString()
