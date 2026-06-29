@@ -1,6 +1,7 @@
 package com.volna.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -455,100 +457,124 @@ private fun SlotFiltersSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+            .background(Color.Black.copy(alpha = 0.6f))
             .clickable { onIntent(SlotListIntent.CloseFilters) },
         contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
     ) {
         Column(
             modifier = Modifier
-                .width(VolnaTheme.tokens.sizing.contentWidth)
+                .fillMaxWidth()
                 .clickable {}
                 .shadow(
-                    elevation = VolnaTheme.tokens.spacing.sm,
+                    elevation = 0.dp,
                     shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
+                        topStart = VolnaTheme.tokens.spacing.xl,
+                        topEnd = VolnaTheme.tokens.spacing.xl,
                     ),
                 )
                 .background(
                     color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
+                        topStart = VolnaTheme.tokens.spacing.xl,
+                        topEnd = VolnaTheme.tokens.spacing.xl,
                     ),
-                )
-                .padding(VolnaTheme.tokens.spacing.md),
+                ),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
             ) {
-                Text("Фильтры", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .align(androidx.compose.ui.Alignment.TopCenter)
+                        .offset(y = 8.dp)
+                        .background(
+                            color = Color(0xFFCCCCCC).copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                        )
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(androidx.compose.ui.Alignment.Center)
+                        .padding(horizontal = VolnaTheme.tokens.spacing.md),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Text("Фильтры", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         text = "Сбросить",
                         modifier = Modifier.clickable { onIntent(SlotListIntent.ResetFilters) },
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                    Text(
-                        text = "×",
-                        modifier = Modifier
-                            .size(VolnaTheme.tokens.spacing.lg)
-                            .clickable { onIntent(SlotListIntent.CloseFilters) },
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.titleLarge,
-                    )
                 }
             }
+            Column(
+                modifier = Modifier.width(VolnaTheme.tokens.sizing.contentWidth),
+                verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.lg),
+            ) {
+                FilterGroup(title = "Дата старта") {
+                    FilterChipRow {
+                        FilterChipButton("Сегодня", state.draftDatePreset == SlotDatePreset.Today) {
+                            onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.Today))
+                        }
+                        FilterChipButton("Эта неделя", state.draftDatePreset == SlotDatePreset.NextSevenDays) {
+                            onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.NextSevenDays))
+                        }
+                        FilterChipButton("Выходные", state.draftDatePreset == SlotDatePreset.Weekend) {
+                            onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.Weekend))
+                        }
+                    }
+                    DateRangePreviewRow(state)
+                }
 
-            FilterGroup(title = "Дата старта") {
-                FilterChipRow {
-                    FilterChipButton("Любая", state.draftDatePreset == SlotDatePreset.Any) {
-                        onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.Any))
-                    }
-                    FilterChipButton("Сегодня", state.draftDatePreset == SlotDatePreset.Today) {
-                        onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.Today))
-                    }
-                    FilterChipButton("7 дней", state.draftDatePreset == SlotDatePreset.NextSevenDays) {
-                        onIntent(SlotListIntent.SelectDatePreset(SlotDatePreset.NextSevenDays))
+                FilterGroup(title = "Тип маршрута") {
+                    FilterChipRow {
+                        FilterChipButton("Новичковый", RouteType.Novice in state.draftFilters.routeTypes) {
+                            onIntent(SlotListIntent.ToggleRouteType(RouteType.Novice))
+                        }
+                        FilterChipButton("Опытный", RouteType.Experienced in state.draftFilters.routeTypes) {
+                            onIntent(SlotListIntent.ToggleRouteType(RouteType.Experienced))
+                        }
                     }
                 }
+
+                InstructorFilterSection(
+                    instructors = state.instructors,
+                    selected = state.draftFilters.instructorIds,
+                    onToggle = { onIntent(SlotListIntent.ToggleInstructor(it.id)) },
+                    onRetry = { onIntent(SlotListIntent.RetryInstructors) },
+                )
+
+                AvailabilitySwitchRow(
+                    checked = state.draftFilters.onlyAvailable,
+                    onToggle = { onIntent(SlotListIntent.ToggleOnlyAvailable) },
+                )
             }
-
-            FilterGroup(title = "Тип маршрута") {
-                FilterChipRow {
-                    FilterChipButton("Новичковый", RouteType.Novice in state.draftFilters.routeTypes) {
-                        onIntent(SlotListIntent.ToggleRouteType(RouteType.Novice))
-                    }
-                    FilterChipButton("Опытный", RouteType.Experienced in state.draftFilters.routeTypes) {
-                        onIntent(SlotListIntent.ToggleRouteType(RouteType.Experienced))
-                    }
-                }
-            }
-
-            FilterChipButton(
-                label = if (state.draftFilters.onlyAvailable) "✓ Только со свободными местами" else "Только со свободными местами",
-                selected = state.draftFilters.onlyAvailable,
-                onClick = { onIntent(SlotListIntent.ToggleOnlyAvailable) },
-            )
-
-            InstructorFilterSection(
-                instructors = state.instructors,
-                selected = state.draftFilters.instructorIds,
-                onToggle = { onIntent(SlotListIntent.ToggleInstructor(it.id)) },
-                onRetry = { onIntent(SlotListIntent.RetryInstructors) },
-            )
 
             Button(
                 onClick = { onIntent(SlotListIntent.ApplyFilters) },
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .width(VolnaTheme.tokens.sizing.contentWidth)
                     .height(VolnaTheme.tokens.sizing.buttonHeight),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
-                Text("Применить")
+                Text("Применить", fontWeight = FontWeight.Bold)
             }
+            Box(
+                modifier = Modifier
+                    .width(138.dp)
+                    .height(4.dp)
+                    .background(Color(0xFFCCCCCC), RoundedCornerShape(VolnaTheme.tokens.radius.pill)),
+            )
+            Spacer(Modifier.height(VolnaTheme.tokens.spacing.xs))
         }
     }
 }
@@ -559,7 +585,7 @@ private fun FilterGroup(
     content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
-        Text(title, fontWeight = FontWeight.Bold)
+        Text(title, style = MaterialTheme.typography.bodyLarge)
         content()
     }
 }
@@ -579,9 +605,104 @@ private fun FilterChipButton(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val text = if (selected && !label.startsWith("✓")) "✓ $label" else label
-    OutlinedButton(onClick = onClick) {
-        Text(text)
+    Text(
+        text = label,
+        modifier = Modifier
+            .height(40.dp)
+            .background(
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+            )
+            .clickable { onClick() }
+            .padding(horizontal = VolnaTheme.tokens.spacing.sm, vertical = 10.dp),
+        style = MaterialTheme.typography.bodyLarge,
+        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+    )
+}
+
+@Composable
+private fun DateRangePreviewRow(state: SlotListState) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+    ) {
+        DateRangeField(
+            text = state.draftFilters.dateFrom.toFilterDateText("с", "не выбрано"),
+            modifier = Modifier.weight(1f),
+        )
+        DateRangeField(
+            text = state.draftFilters.dateTo.toFilterDateText("по", "не выбрано"),
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun DateRangeField(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        modifier = modifier
+            .height(40.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.sm),
+            )
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.sm),
+            )
+            .padding(horizontal = VolnaTheme.tokens.spacing.sm, vertical = 10.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun AvailabilitySwitchRow(
+    checked: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "Только со свободными местами",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        AvailabilitySwitch(checked = checked)
+    }
+}
+
+@Composable
+private fun AvailabilitySwitch(checked: Boolean) {
+    Box(
+        modifier = Modifier
+            .width(44.dp)
+            .height(24.dp)
+            .background(
+                color = if (checked) MaterialTheme.colorScheme.primary else Color(0xFFCCCCCC),
+                shape = RoundedCornerShape(100.dp),
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .offset(x = if (checked) 22.dp else 2.dp, y = 2.dp)
+                .background(Color.White, RoundedCornerShape(100.dp))
+                .shadow(2.dp, RoundedCornerShape(100.dp)),
+        )
     }
 }
 
@@ -1278,6 +1399,29 @@ private fun kotlinx.datetime.Instant.toSlotCardStartText(): String {
     }
     val minute = dateTime.minute.toString().padStart(2, '0')
     return "$weekday, ${dateTime.dayOfMonth} $month · ${dateTime.hour}:$minute"
+}
+
+private fun kotlinx.datetime.Instant?.toFilterDateText(prefix: String, fallback: String): String =
+    if (this == null) {
+        "$prefix: $fallback"
+    } else {
+        val date = toLocalDateTime(TimeZone.currentSystemDefault()).date
+        "$prefix: ${date.dayOfMonth} ${date.month.toMonthName()}"
+    }
+
+private fun Month.toMonthName(): String = when (this) {
+    Month.JANUARY -> "января"
+    Month.FEBRUARY -> "февраля"
+    Month.MARCH -> "марта"
+    Month.APRIL -> "апреля"
+    Month.MAY -> "мая"
+    Month.JUNE -> "июня"
+    Month.JULY -> "июля"
+    Month.AUGUST -> "августа"
+    Month.SEPTEMBER -> "сентября"
+    Month.OCTOBER -> "октября"
+    Month.NOVEMBER -> "ноября"
+    Month.DECEMBER -> "декабря"
 }
 
 private fun kotlinx.datetime.Instant.toUiText(): String =

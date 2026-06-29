@@ -15,7 +15,12 @@ import com.volna.app.domain.model.InstructorId
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
 import kotlinx.datetime.Clock
-import kotlin.time.Duration.Companion.days
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +42,7 @@ enum class SlotDatePreset {
     Any,
     Today,
     NextSevenDays,
+    Weekend,
 }
 
 sealed interface SlotListIntent {
@@ -154,10 +160,29 @@ class SlotListStore(
 
     private fun selectDatePreset(preset: SlotDatePreset) {
         val now = Clock.System.now()
+        val zone = TimeZone.currentSystemDefault()
+        val today = now.toLocalDateTime(zone).date
+        val todayStart = today.atStartOfDayIn(zone)
         val filters = when (preset) {
             SlotDatePreset.Any -> SlotFilters()
-            SlotDatePreset.Today -> SlotFilters(dateFrom = now, dateTo = now + 1.days)
-            SlotDatePreset.NextSevenDays -> SlotFilters(dateFrom = now, dateTo = now + 7.days)
+            SlotDatePreset.Today -> SlotFilters(dateFrom = todayStart, dateTo = today.plus(DatePeriod(days = 1)).atStartOfDayIn(zone))
+            SlotDatePreset.NextSevenDays -> {
+                val daysUntilNextWeek = 8 - today.dayOfWeek.isoDayNumber()
+                SlotFilters(dateFrom = todayStart, dateTo = today.plus(DatePeriod(days = daysUntilNextWeek)).atStartOfDayIn(zone))
+            }
+            SlotDatePreset.Weekend -> {
+                val dayNumber = today.dayOfWeek.isoDayNumber()
+                val daysUntilSaturday = when (today.dayOfWeek) {
+                    DayOfWeek.SATURDAY,
+                    DayOfWeek.SUNDAY -> 0
+                    else -> 6 - dayNumber
+                }
+                val daysInRange = if (today.dayOfWeek == DayOfWeek.SUNDAY) 1 else 2
+                SlotFilters(
+                    dateFrom = today.plus(DatePeriod(days = daysUntilSaturday)).atStartOfDayIn(zone),
+                    dateTo = today.plus(DatePeriod(days = daysUntilSaturday + daysInRange)).atStartOfDayIn(zone),
+                )
+            }
         }
         mutableState.update {
             it.copy(
@@ -224,3 +249,13 @@ class SlotListStore(
 
 private fun <T> Set<T>.toggle(item: T): Set<T> =
     if (item in this) this - item else this + item
+
+private fun DayOfWeek.isoDayNumber(): Int = when (this) {
+    DayOfWeek.MONDAY -> 1
+    DayOfWeek.TUESDAY -> 2
+    DayOfWeek.WEDNESDAY -> 3
+    DayOfWeek.THURSDAY -> 4
+    DayOfWeek.FRIDAY -> 5
+    DayOfWeek.SATURDAY -> 6
+    DayOfWeek.SUNDAY -> 7
+}
