@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -418,17 +419,15 @@ private fun SlotListScreen(
         fontWeight = FontWeight.Bold,
     )
     when (val slots = state.slots) {
-        Loadable.Initial,
-        Loadable.Loading -> {
-            SkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
-            SkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
-        }
+        Loadable.Initial -> SlotInitialLoader()
+        Loadable.Loading -> SlotLoadingSkeleton()
         is Loadable.Content -> SlotCards(slots.value, onSlotClick)
         is Loadable.Empty -> if (slots.reason == com.volna.app.core.ui.EmptyReason.NoSlotsByFilters) {
             StateMessage(
                 title = "Нет слотов по условиям",
                 description = "Попробуйте изменить фильтры",
                 buttonText = "Фильтры",
+                artwork = StateArtwork.Empty,
                 onClick = { onIntent(SlotListIntent.OpenFilters) },
             )
         } else {
@@ -440,7 +439,8 @@ private fun SlotListScreen(
         is Loadable.Error -> StateMessage(
             title = "Не удалось загрузить",
             description = "Проверьте соединение и попробуйте снова",
-            buttonText = "Повторить",
+            buttonText = "Обновить",
+            artwork = StateArtwork.Error,
             onClick = { onIntent(SlotListIntent.Retry) },
         )
     }
@@ -748,13 +748,37 @@ private fun InstructorFilterSection(
 }
 
 @Composable
+private fun SlotInitialLoader() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset(y = 309.dp),
+        contentAlignment = androidx.compose.ui.Alignment.TopCenter,
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(40.dp),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+            strokeWidth = 6.dp,
+        )
+    }
+}
+
+@Composable
+private fun SlotLoadingSkeleton() {
+    SkeletonCard(y = 136.dp, height = 160.dp)
+    SkeletonCard(y = 308.dp, height = 160.dp)
+}
+
+@Composable
 private fun SkeletonCard(
     y: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp = VolnaTheme.tokens.sizing.listCardHeight,
 ) {
     Box(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
-            .height(VolnaTheme.tokens.sizing.listCardHeight)
+            .height(height)
             .offset(x = VolnaTheme.tokens.spacing.md, y = y)
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1860,26 +1884,133 @@ private fun ScreenTitle(title: String) {
     )
 }
 
+private enum class StateArtwork {
+    Empty,
+    Error,
+}
+
 @Composable
 private fun StateMessage(
     title: String,
     description: String,
     buttonText: String? = null,
+    artwork: StateArtwork = StateArtwork.Empty,
     onClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listStateMessageY),
+            .offset(x = VolnaTheme.tokens.spacing.md, y = 190.dp),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-        Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        StateIllustration(artwork)
+        Spacer(Modifier.height(VolnaTheme.tokens.spacing.md))
+        Text(
+            text = title,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = description,
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color(0xFF797979),
+            textAlign = TextAlign.Center,
+        )
         if (buttonText != null && onClick != null) {
-            Button(onClick = onClick) {
+            Spacer(Modifier.height(VolnaTheme.tokens.spacing.lg))
+            Button(
+                onClick = onClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(VolnaTheme.tokens.sizing.buttonHeight),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            ) {
                 Text(buttonText)
             }
+        }
+    }
+}
+
+@Composable
+private fun StateIllustration(artwork: StateArtwork) {
+    val primary = MaterialTheme.colorScheme.primary
+    Canvas(
+        modifier = Modifier.size(width = 212.dp, height = 150.dp),
+    ) {
+        val light = Color(0xFFE5FFFC)
+        val basePath = androidx.compose.ui.graphics.Path().apply {
+            moveTo(size.width * 0.15f, size.height * 0.82f)
+            cubicTo(size.width * 0.02f, size.height * 0.46f, size.width * 0.28f, size.height * 0.03f, size.width * 0.52f, size.height * 0.12f)
+            cubicTo(size.width * 0.68f, size.height * 0.18f, size.width * 0.72f, size.height * 0.36f, size.width * 0.86f, size.height * 0.34f)
+            cubicTo(size.width * 1.04f, size.height * 0.32f, size.width * 1.02f, size.height * 0.84f, size.width * 0.77f, size.height * 0.9f)
+            cubicTo(size.width * 0.56f, size.height * 0.96f, size.width * 0.34f, size.height * 0.96f, size.width * 0.15f, size.height * 0.82f)
+            close()
+        }
+        drawPath(basePath, light)
+        drawPath(
+            path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(size.width * 0.05f, size.height * 0.62f)
+                cubicTo(size.width * 0.24f, size.height * 0.62f, size.width * 0.27f, size.height * 0.92f, size.width * 0.47f, size.height)
+                lineTo(size.width * 0.05f, size.height)
+                close()
+            },
+            color = primary,
+        )
+        drawPath(
+            path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(size.width * 0.56f, size.height * 0.88f)
+                cubicTo(size.width * 0.7f, size.height * 0.66f, size.width * 0.83f, size.height * 0.62f, size.width * 0.98f, size.height * 0.62f)
+                lineTo(size.width * 0.98f, size.height)
+                lineTo(size.width * 0.56f, size.height)
+                close()
+            },
+            color = primary,
+        )
+        if (artwork == StateArtwork.Empty) {
+            val cardLeft = size.width * 0.32f
+            val cardTop = size.height * 0.4f
+            drawRoundRect(
+                color = light,
+                topLeft = Offset(cardLeft, cardTop),
+                size = androidx.compose.ui.geometry.Size(size.width * 0.34f, size.height * 0.42f),
+                cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5.dp.toPx()),
+            )
+            drawCircle(primary, 4.dp.toPx(), Offset(size.width * 0.44f, size.height * 0.58f))
+            drawCircle(primary, 4.dp.toPx(), Offset(size.width * 0.55f, size.height * 0.58f))
+            drawArc(
+                color = primary,
+                startAngle = 205f,
+                sweepAngle = 130f,
+                useCenter = false,
+                topLeft = Offset(size.width * 0.43f, size.height * 0.66f),
+                size = androidx.compose.ui.geometry.Size(size.width * 0.15f, size.height * 0.12f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
+            )
+        } else {
+            drawLine(primary, Offset(size.width * 0.22f, size.height * 0.58f), Offset(size.width * 0.5f, size.height * 0.74f), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+            drawLine(primary, Offset(size.width * 0.78f, size.height * 0.58f), Offset(size.width * 0.5f, size.height * 0.74f), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+            drawRoundRect(
+                color = primary,
+                topLeft = Offset(size.width * 0.24f, size.height * 0.52f),
+                size = androidx.compose.ui.geometry.Size(size.width * 0.18f, size.height * 0.16f),
+                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
+            )
+            drawRoundRect(
+                color = primary,
+                topLeft = Offset(size.width * 0.62f, size.height * 0.52f),
+                size = androidx.compose.ui.geometry.Size(size.width * 0.18f, size.height * 0.16f),
+                cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
+            )
+            drawLine(primary, Offset(size.width * 0.47f, size.height * 0.36f), Offset(size.width * 0.52f, size.height * 0.49f), strokeWidth = 3.dp.toPx())
+            drawLine(primary, Offset(size.width * 0.52f, size.height * 0.49f), Offset(size.width * 0.48f, size.height * 0.47f), strokeWidth = 3.dp.toPx())
+            drawLine(primary, Offset(size.width * 0.58f, size.height * 0.38f), Offset(size.width * 0.54f, size.height * 0.49f), strokeWidth = 3.dp.toPx())
         }
     }
 }
