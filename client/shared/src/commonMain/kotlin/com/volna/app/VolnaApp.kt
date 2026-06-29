@@ -2,6 +2,7 @@ package com.volna.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,8 +36,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -928,16 +932,17 @@ private fun SlotDetailsScreen(
         onIntent(SlotDetailsIntent.Load(slotId))
     }
     Box(Modifier.fillMaxSize()) {
-        BackButton(onBack)
-        ScreenTitle("Прогулка")
         when (val slot = state.slot) {
             Loadable.Initial,
             Loadable.Loading -> {
+                BackButton(onBack)
+                ScreenTitle("Прогулка")
                 SkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
                 SkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
             }
             is Loadable.Content -> SlotDetailsContent(
                 slot = slot.value,
+                onBack = onBack,
                 onBook = { onBook(slot.value) },
                 onOpenMap = { showRouteMap = true },
             )
@@ -969,71 +974,298 @@ private fun SlotDetailsScreen(
 @Composable
 private fun SlotDetailsContent(
     slot: Slot,
+    onBack: () -> Unit,
     onBook: () -> Unit,
     onOpenMap: () -> Unit,
 ) {
     val availability = AvailabilityPolicy.availability(slot)
-    Column(
+    Box(Modifier.fillMaxSize()) {
+        SlotDetailsHero()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = VolnaTheme.tokens.spacing.md)
+                .offset(y = 74.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            CircleActionButton(text = "‹", onClick = onBack)
+            CircleActionButton(text = "↗", onClick = {})
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset(y = 136.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(
+                        topStart = VolnaTheme.tokens.spacing.xl,
+                        topEnd = VolnaTheme.tokens.spacing.xl,
+                    ),
+                )
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(4.dp)
+                    .background(Color(0xFFCCCCCC).copy(alpha = 0.4f), RoundedCornerShape(VolnaTheme.tokens.radius.lg)),
+            )
+            SlotDetailsSheetContent(
+                slot = slot,
+                availability = availability,
+                onOpenMap = onOpenMap,
+            )
+            Button(
+                onClick = onBook,
+                enabled = availability.canBook,
+                modifier = Modifier
+                    .width(VolnaTheme.tokens.sizing.contentWidth)
+                    .height(VolnaTheme.tokens.sizing.buttonHeight),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            ) {
+                Text(if (availability.canBook) "Записаться" else "Мест нет", fontWeight = FontWeight.Bold)
+            }
+            Box(
+                modifier = Modifier
+                    .width(138.dp)
+                    .height(4.dp)
+                    .background(Color(0xFFCCCCCC), RoundedCornerShape(VolnaTheme.tokens.radius.pill)),
+            )
+            Spacer(Modifier.height(VolnaTheme.tokens.spacing.xs))
+        }
+    }
+}
+
+@Composable
+private fun SlotDetailsHero() {
+    Box(
         modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+            .fillMaxWidth()
+            .height(188.dp)
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color(0xFFC8E5E8),
+                        Color(0xFFF5ECD2),
+                        Color(0xFFABC7CF),
+                    ),
+                ),
+            ),
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp)
+                .align(androidx.compose.ui.Alignment.BottomCenter)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.20f)),
+                    ),
+                ),
+        )
+    }
+}
+
+@Composable
+private fun CircleActionButton(
+    text: String,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .size(40.dp)
+            .shadow(4.dp, RoundedCornerShape(200.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(200.dp))
+            .clickable { onClick() }
+            .padding(top = 4.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.headlineSmall,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+@Composable
+private fun SlotDetailsSheetContent(
+    slot: Slot,
+    availability: com.volna.app.domain.policy.Availability,
+    onOpenMap: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.width(VolnaTheme.tokens.sizing.contentWidth),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+            SlotTag(text = slot.route.type.toTagText(), color = Color(0xFF92FF9A))
+            SlotTag(
+                text = slot.route.name,
+                color = Color(0xFFFFF897),
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                    shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
                 )
                 .padding(VolnaTheme.tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
         ) {
-            Text(slot.route.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(slot.startAt.toUiText(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Маршрут: ${slot.route.type.toUiText()}, ${slot.route.durationMin} мин")
-            Text("Инструктор: ${slot.instructor.name}")
-            Text("Место встречи: ${slot.meetingPoint.title.ifBlank { "уточняется" }}")
+            Text(
+                text = slot.startAt.toSlotCardStartText(),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "Прогулка по маршруту «${slot.route.name}» займет ${slot.route.durationMin} минут и отлично подойдет ${slot.route.type.toDetailsAudienceText()}.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "Инструктор: ${slot.instructor.name}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
-            Text("Карта маршрута", fontWeight = FontWeight.Bold)
-            Box(
-                modifier = Modifier.clickable { onOpenMap() },
-            ) {
-                RouteMapPreview(
-                    route = slot.route,
-                    meetingPoint = slot.meetingPoint,
-                    onOpenExternal = onOpenMap,
-                )
-            }
-        }
+        SlotDetailsMapCard(slot = slot, onOpenMap = onOpenMap)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
                 )
                 .padding(VolnaTheme.tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         ) {
-            Text("Доступность", fontWeight = FontWeight.Bold)
-            Text("Можно забронировать мест: ${availability.maxSeatsForBooking}")
-            Text("Свободно прокатных досок: ${availability.freeRentalBoards}")
-            Text("Место: ${slot.price.value} ₽")
-            Text("Прокат доски: ${slot.rentalPrice.value} ₽")
+            DetailsInfoRow("Свободно мест", "${slot.freeSeats} из ${slot.totalSeats}")
+            DetailsInfoRow("Прокатная доска (доступно ${availability.freeRentalBoards} шт.)", "${slot.rentalPrice.value} ₽", boldValue = true)
+            DetailsInfoRow("Цена", "${slot.price.value} ₽", boldValue = true)
         }
-        Button(
-            onClick = onBook,
-            enabled = availability.canBook,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(VolnaTheme.tokens.sizing.buttonHeight),
-        ) {
-            Text(if (availability.canBook) "Записаться" else "Мест нет")
+        Text(
+            text = "Оплата на месте: наличные или перевод",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SlotDetailsMapCard(
+    slot: Slot,
+    onOpenMap: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
+            )
+            .padding(VolnaTheme.tokens.spacing.md),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        Text(
+            text = "Адрес: ${slot.meetingPoint.title.ifBlank { "уточняется" }}",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        SlotDetailsMapPreview()
+        Text(
+            text = "Открыть карту",
+            modifier = Modifier.clickable { onOpenMap() },
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF0093CC),
+        )
+    }
+}
+
+@Composable
+private fun SlotDetailsMapPreview() {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(156.dp)
+            .background(Color.White, RoundedCornerShape(VolnaTheme.tokens.radius.sm)),
+    ) {
+        val corner = 12.dp.toPx()
+        drawRoundRect(
+            color = Color(0xFF8AD0F0),
+            cornerRadius = CornerRadius(corner, corner),
+        )
+        drawRoundRect(
+            color = Color(0xFFDDF3CC),
+            topLeft = Offset(size.width * 0.02f, 0f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.22f, size.height),
+            cornerRadius = CornerRadius(corner, corner),
+        )
+        drawRoundRect(
+            color = Color(0xFFDDF3CC),
+            topLeft = Offset(size.width * 0.84f, 0f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.16f, size.height),
+            cornerRadius = CornerRadius(corner, corner),
+        )
+        listOf(0.22f, 0.50f, 0.78f).forEach { y ->
+            drawLine(
+                color = Color(0xFFF9F6F0),
+                start = Offset(0f, size.height * y),
+                end = Offset(size.width, size.height * (y - 0.12f)),
+                strokeWidth = 6.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
         }
-        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight))
+        val routePoints = listOf(
+            Offset(size.width * 0.34f, size.height * 0.88f),
+            Offset(size.width * 0.48f, size.height * 0.58f),
+            Offset(size.width * 0.62f, size.height * 0.36f),
+        )
+        routePoints.zipWithNext().forEach { (start, end) ->
+            drawLine(
+                color = Color(0xFF00A59D),
+                start = start,
+                end = end,
+                strokeWidth = 4.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+        drawCircle(Color(0xFFFF6B4A), radius = 6.dp.toPx(), center = routePoints.first())
+        drawCircle(Color.White, radius = 2.5.dp.toPx(), center = routePoints.first())
+    }
+}
+
+@Composable
+private fun DetailsInfoRow(
+    label: String,
+    value: String,
+    boldValue: Boolean = false,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (boldValue) FontWeight.Bold else FontWeight.Normal,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -1370,6 +1602,11 @@ private fun RouteType.toUiText(): String = when (this) {
 private fun RouteType.toTagText(): String = when (this) {
     RouteType.Novice -> "Новичковый"
     RouteType.Experienced -> "Опытный"
+}
+
+private fun RouteType.toDetailsAudienceText(): String = when (this) {
+    RouteType.Novice -> "для новичков"
+    RouteType.Experienced -> "для опытных райдеров"
 }
 
 private fun kotlinx.datetime.Instant.toSlotCardStartText(): String {
