@@ -1660,62 +1660,129 @@ private fun BookingSuccessSheet(
     onOpenBookings: () -> Unit,
 ) {
     // CMP-15 / BS-002: successful createBooking summary; no network requests on open.
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
-            .clickable { onDone() },
-        contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = VolnaTheme.tokens.spacing.md),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
     ) {
-        Column(
+        Text(
+            text = "Вы записаны",
             modifier = Modifier
-                .width(VolnaTheme.tokens.sizing.contentWidth)
-                .clickable {}
-                .shadow(
-                    elevation = VolnaTheme.tokens.spacing.sm,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
-                    ),
-                )
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
-                    ),
-                )
-                .verticalScroll(rememberScrollState())
-                .padding(VolnaTheme.tokens.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+                .fillMaxWidth()
+                .offset(y = VolnaTheme.tokens.sizing.topTitleY),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        BookingSuccessSummaryCard(
+            booking = booking,
+            fallbackPrice = fallbackPrice,
+            modifier = Modifier.offset(y = 142.dp),
+        )
+        Spacer(Modifier.weight(1f))
+        Button(
+            onClick = onOpenBookings,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(VolnaTheme.tokens.sizing.buttonHeight),
+            shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
         ) {
-            Text("Вы записаны", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            booking.slot?.let { slot ->
-                Text(slot.route.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(slot.startAt.toUiText(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Инструктор: ${slot.instructor.name}")
-            }
-            Text("Мест: ${booking.seatsCount}")
-            Text("Прокатных досок: ${booking.rentalCount}")
-            Text("Своя доска: ${(booking.seatsCount - booking.rentalCount).coerceAtLeast(0)}")
-            Text(
-                "${BookingPriceCalculator.calculate(booking)?.value ?: fallbackPrice} ₽",
-                style = MaterialTheme.typography.headlineSmall,
+            Text("Мои бронирования", fontWeight = FontWeight.Bold)
+        }
+        OutlinedButton(
+            onClick = onDone,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(VolnaTheme.tokens.sizing.buttonHeight),
+            shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+        ) {
+            Text("Готово", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        }
+        Box(
+            modifier = Modifier
+                .padding(top = VolnaTheme.tokens.spacing.lg, bottom = VolnaTheme.tokens.spacing.xs)
+                .width(138.dp)
+                .height(4.dp)
+                .background(Color(0xFFCCCCCC), RoundedCornerShape(VolnaTheme.tokens.radius.pill)),
+        )
+    }
+}
+
+@Composable
+private fun BookingSuccessSummaryCard(
+    booking: Booking,
+    fallbackPrice: Int,
+    modifier: Modifier = Modifier,
+) {
+    val slot = booking.slot
+    val total = BookingPriceCalculator.calculate(booking)?.value ?: fallbackPrice
+    Column(
+        modifier = modifier
+            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
             )
-            Text("Оплата на месте: наличные или перевод на карту.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(
-                onClick = onOpenBookings,
+            .padding(VolnaTheme.tokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.lg),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm)) {
+            Text(
+                text = slot?.startAt?.toSlotCardStartText() ?: "Запись создана",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            slot?.let {
+                Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+                    SlotTag(text = it.route.type.toTagText(), color = Color(0xFF92FF9A))
+                    SlotTag(
+                        text = it.route.name,
+                        color = Color(0xFFFFF897),
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    SlotTag(
+                        text = "Инструктор: ${it.instructor.name}",
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+            }
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(VolnaTheme.tokens.sizing.buttonHeight),
+                    .background(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(VolnaTheme.tokens.radius.sm),
+                    )
+                    .padding(VolnaTheme.tokens.spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
             ) {
-                Text("Мои записи")
+                DetailsInfoRow("Мест", booking.seatsCount.toString())
+                DetailsInfoRow("Доска в прокат", booking.rentalCount.toString())
             }
-            OutlinedButton(
-                onClick = onDone,
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
+            DetailsInfoRow("Итого", "$total ₽", boldValue = true)
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Text("Готово")
+                Text(
+                    text = "ⓘ",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Оплата на месте: наличные или перевод",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
