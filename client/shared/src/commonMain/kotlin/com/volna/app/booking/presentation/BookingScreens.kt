@@ -2,6 +2,7 @@ package com.volna.app.booking.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,8 +32,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,7 +51,6 @@ import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.map.RouteMapSheet
-import com.volna.app.map.RouteMapPreview
 import kotlinx.coroutines.delay
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.Instant
@@ -425,6 +428,8 @@ private fun BookingDetailsContent(
     clock: AppClock,
     onIntent: (BookingDetailsIntent) -> Unit,
 ) {
+    val slot = booking.slot
+    val canCancel = state.canCancel(clock)
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
@@ -432,64 +437,238 @@ private fun BookingDetailsContent(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
-        BookingInfoBlock {
-            Text(booking.statusLabel(clock), fontWeight = FontWeight.Bold)
-            Text(booking.slot?.startAt?.toUiText() ?: "Время уточняется", style = MaterialTheme.typography.titleLarge)
+        BookingDetailsEventCard(
+            booking = booking,
+            status = booking.statusLabel(clock),
+        )
+        slot?.let {
+            BookingDetailsMapCard(
+                address = it.meetingPoint.title.ifBlank { "уточняется" },
+                onOpenMap = { onIntent(BookingDetailsIntent.OpenRouteMap) },
+            )
         }
-        BookingInfoBlock {
-            Text("Маршрут", fontWeight = FontWeight.Bold)
-            Text(booking.slot?.route?.name ?: "Маршрут уточняется")
-            Text(booking.slot?.route?.type?.toUiText() ?: "Тип уточняется")
-            Text("Инструктор: ${booking.slot?.instructor?.name ?: "уточняется"}")
-        }
-        booking.slot?.let { slot ->
-            Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
-                Text("Карта маршрута", fontWeight = FontWeight.Bold)
-                Box(
-                    modifier = Modifier.clickable { onIntent(BookingDetailsIntent.OpenRouteMap) },
-                ) {
-                    RouteMapPreview(
-                        route = slot.route,
-                        meetingPoint = slot.meetingPoint,
-                        onOpenExternal = { onIntent(BookingDetailsIntent.OpenRouteMap) },
-                    )
-                }
-                Text(
-                    text = "Место встречи: ${slot.meetingPoint.title.ifBlank { "уточняется" }}",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        BookingInfoBlock {
-            Text("Места и доски", fontWeight = FontWeight.Bold)
-            Text("Мест: ${booking.seatsCount}")
-            Text("Прокатных досок: ${booking.rentalCount}")
-            Text("Своя доска: ${(booking.seatsCount - booking.rentalCount).coerceAtLeast(0)}")
-        }
-        BookingInfoBlock {
-            Text("Цена", fontWeight = FontWeight.Bold)
-            Text("${BookingPriceCalculator.calculate(booking)?.value ?: 0} ₽", style = MaterialTheme.typography.headlineSmall)
-            Text("Оплата на месте: наличные или перевод на карту.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        BookingInfoBlock {
-            Text("Записано: ${booking.createdAt.toUiText()}")
-            booking.cancelledAt?.let { Text("Отменено: ${it.toUiText()}") }
-            state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
-        }
-        val canCancel = state.canCancel(clock)
+        BookingDetailsPriceBlock(booking)
         if (canCancel) {
-            Text(cancelDeadlineText(booking), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = cancelDeadlineText(booking),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        booking.cancelledAt?.let {
+            Text(
+                text = "Отменено: ${it.toUiText()}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        state.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         Button(
             onClick = { onIntent(BookingDetailsIntent.AskCancel) },
             enabled = canCancel,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(VolnaTheme.tokens.sizing.buttonHeight),
+            shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
         ) {
             Text(if (canCancel) "Отменить" else "Отмена недоступна")
         }
-        Spacer(Modifier.height(VolnaTheme.tokens.spacing.xl))
+        Box(
+            modifier = Modifier
+                .width(138.dp)
+                .height(4.dp)
+                .align(androidx.compose.ui.Alignment.CenterHorizontally)
+                .background(Color(0xFFCCCCCC), RoundedCornerShape(VolnaTheme.tokens.radius.pill)),
+        )
+        Spacer(Modifier.height(VolnaTheme.tokens.spacing.xs))
+    }
+}
+
+@Composable
+private fun BookingDetailsEventCard(
+    booking: Booking,
+    status: String,
+) {
+    val slot = booking.slot
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
+            )
+            .padding(VolnaTheme.tokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        Box {
+            BookingPreviewPhoto()
+            BookingStatusPill(
+                status = status,
+                modifier = Modifier
+                    .offset(x = VolnaTheme.tokens.spacing.xs, y = VolnaTheme.tokens.spacing.xs),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs)) {
+            slot?.let {
+                BookingTag(text = it.route.type.toTagText(), color = Color(0xFF92FF9A))
+                BookingTag(
+                    text = it.route.name,
+                    color = Color(0xFFFFF897),
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+            }
+        }
+        Text(
+            text = slot?.startAt?.toBookingCardStartText() ?: "Время уточняется",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = "Инструктор: ${slot?.instructor?.name ?: "уточняется"}",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun BookingStatusPill(
+    status: String,
+    modifier: Modifier = Modifier,
+) {
+    val active = status == "Активна"
+    Text(
+        text = status,
+        modifier = modifier
+            .width(100.dp)
+            .height(36.dp)
+            .background(
+                color = if (active) Color(0xFFE4FFE5) else MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(10.dp),
+            )
+            .padding(top = 9.dp),
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (active) Color(0xFF007108) else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun BookingDetailsMapCard(
+    address: String,
+    onOpenMap: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(VolnaTheme.tokens.spacing.xl),
+            )
+            .padding(VolnaTheme.tokens.spacing.md),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        Text(
+            text = "Адрес: $address",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        BookingDetailsMapPreview()
+        Text(
+            text = "Открыть карту",
+            modifier = Modifier.clickable { onOpenMap() },
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF0093CC),
+        )
+    }
+}
+
+@Composable
+private fun BookingDetailsMapPreview() {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(156.dp)
+            .background(Color.White, RoundedCornerShape(VolnaTheme.tokens.radius.sm)),
+    ) {
+        val corner = 12.dp.toPx()
+        drawRoundRect(Color(0xFF8AD0F0), cornerRadius = CornerRadius(corner, corner))
+        drawRoundRect(
+            color = Color(0xFFDDF3CC),
+            topLeft = Offset(size.width * 0.02f, 0f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.22f, size.height),
+            cornerRadius = CornerRadius(corner, corner),
+        )
+        drawRoundRect(
+            color = Color(0xFFDDF3CC),
+            topLeft = Offset(size.width * 0.84f, 0f),
+            size = androidx.compose.ui.geometry.Size(size.width * 0.16f, size.height),
+            cornerRadius = CornerRadius(corner, corner),
+        )
+        listOf(0.22f, 0.50f, 0.78f).forEach { y ->
+            drawLine(
+                color = Color(0xFFF9F6F0),
+                start = Offset(0f, size.height * y),
+                end = Offset(size.width, size.height * (y - 0.12f)),
+                strokeWidth = 6.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
+        val routePoints = listOf(
+            Offset(size.width * 0.34f, size.height * 0.88f),
+            Offset(size.width * 0.48f, size.height * 0.58f),
+            Offset(size.width * 0.62f, size.height * 0.36f),
+        )
+        routePoints.zipWithNext().forEach { (start, end) ->
+            drawLine(Color(0xFF00A59D), start, end, strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
+        }
+        drawCircle(Color(0xFFFF6B4A), radius = 6.dp.toPx(), center = routePoints.first())
+        drawCircle(Color.White, radius = 2.5.dp.toPx(), center = routePoints.first())
+    }
+}
+
+@Composable
+private fun BookingDetailsPriceBlock(booking: Booking) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(0.dp))
+            .padding(top = VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${booking.seatsCount} ${booking.seatsCount.pluralPlaces()} · ${booking.rentalCount} ${booking.rentalCount.pluralRentalBoards()}",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "${BookingPriceCalculator.calculate(booking)?.value ?: 0} ₽",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text("ⓘ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = "Оплата на месте: наличные или перевод",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
