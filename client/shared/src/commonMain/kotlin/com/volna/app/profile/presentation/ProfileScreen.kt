@@ -1,5 +1,6 @@
 package com.volna.app.profile.presentation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -33,11 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import com.volna.app.core.config.AppConfig
 import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.phone.formatPhoneNumber
@@ -180,23 +184,24 @@ private fun ProfileViewContent(
     onOpenExternalUrl: (String) -> Unit,
     onIntent: (ProfileIntent) -> Unit,
 ) {
-    ProfileInfoRow(label = "Имя", value = clientName.ifBlank { "Имя не указано" })
-    ProfileInfoRow(label = "Телефон", value = phone)
-    OutlinedButton(
+    ProfileInfoRow(
+        label = null,
+        value = clientName.ifBlank { "Имя" },
+        placeholder = clientName.isBlank(),
         onClick = { onIntent(ProfileIntent.EditClicked) },
-        enabled = !state.isSubmitting,
-        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(VolnaTheme.tokens.sizing.buttonHeight),
-    ) {
-        Text("Редактировать", fontWeight = FontWeight.Bold)
-    }
+    )
+    ProfileInfoRow(
+        label = "Телефон",
+        value = formatPhoneNumber(phone),
+        onClick = { onIntent(ProfileIntent.EditClicked) },
+    )
+    Spacer(Modifier.height(VolnaTheme.tokens.spacing.md))
     ProfileLinks(
         appConfig = appConfig,
         onOpenExternalUrl = onOpenExternalUrl,
     )
-    ProfileDangerActions(state = state, onIntent = onIntent)
+    Spacer(Modifier.height(236.dp))
+    ProfileLogoutButton(state = state, onIntent = onIntent)
 }
 
 @Composable
@@ -324,8 +329,10 @@ private fun ProfileTextField(
 
 @Composable
 private fun ProfileInfoRow(
-    label: String,
+    label: String?,
     value: String,
+    placeholder: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
@@ -335,14 +342,32 @@ private fun ProfileInfoRow(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
             )
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = VolnaTheme.tokens.spacing.md),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.bodyLarge)
+        Column(
+            verticalArrangement = Arrangement.Center,
+        ) {
+            if (label != null) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF797979),
+                )
+            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (placeholder) Color(0xFF797979) else MaterialTheme.colorScheme.onSurface,
+            )
         }
+        Text(
+            text = "✎",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -353,8 +378,18 @@ private fun ProfileLinks(
 ) {
     // SCR-007 / AC-009: links are opened only when provided by app configuration.
     Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+            .padding(top = VolnaTheme.tokens.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color(0xFFF2F2F2)),
+        )
         InfoLine(
             label = "Правила клуба",
             value = if (appConfig.rulesUrl != null) "›" else "не настроено",
@@ -370,35 +405,26 @@ private fun ProfileLinks(
 }
 
 @Composable
-private fun ProfileDangerActions(
+private fun ProfileLogoutButton(
     state: ProfileState,
     onIntent: (ProfileIntent) -> Unit,
 ) {
-    OutlinedButton(
+    Button(
         onClick = { onIntent(ProfileIntent.LogoutClicked) },
         enabled = state.actionStatus == ActionStatus.Idle,
         shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
         colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.primary,
+            disabledContainerColor = MaterialTheme.colorScheme.surface,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
         modifier = Modifier
             .fillMaxWidth()
             .height(VolnaTheme.tokens.sizing.buttonHeight),
     ) {
         Text(if (state.isSubmitting) "Выходим..." else "Выйти", fontWeight = FontWeight.Bold)
-    }
-    OutlinedButton(
-        onClick = { onIntent(ProfileIntent.DeleteClicked) },
-        enabled = state.actionStatus == ActionStatus.Idle,
-        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.error,
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(VolnaTheme.tokens.sizing.buttonHeight),
-    ) {
-        Text(if (state.isSubmitting) "Удаляем..." else "Удалить аккаунт", fontWeight = FontWeight.Bold)
     }
 }
 
@@ -415,8 +441,16 @@ private fun InfoLine(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF797979),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF797979),
+        )
     }
 }
 
