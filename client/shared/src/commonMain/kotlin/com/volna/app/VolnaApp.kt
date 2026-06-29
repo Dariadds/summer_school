@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.volna.app.booking.data.KtorBookingRepository
 import com.volna.app.booking.data.RandomIdempotencyKeyFactory
 import com.volna.app.booking.presentation.BookingFormEffect
@@ -86,6 +87,15 @@ import com.volna.app.core.storage.PlatformSessionStorage
 import com.volna.app.core.time.AppClock
 import com.volna.app.core.time.SystemAppClock
 import com.volna.app.core.ui.Loadable
+import com.volna.app.uikit.icons.Back
+import com.volna.app.uikit.icons.Calendar
+import com.volna.app.uikit.icons.Icons
+import com.volna.app.uikit.icons.Info
+import com.volna.app.uikit.icons.Options
+import com.volna.app.uikit.icons.Profile
+import com.volna.app.uikit.icons.Share
+import com.volna.app.uikit.icons.Tune
+import com.volna.app.uikit.icons.VolnaIcon
 import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.Instructor
@@ -408,15 +418,14 @@ private fun SlotListScreen(
         onIntent(SlotListIntent.Load)
     }
     ScreenTitle("Прогулки")
-    Text(
-        text = "≡",
+    VolnaIcon(
+        imageVector = Icons.Tune,
+        contentDescription = "Фильтры",
         modifier = Modifier
             .offset(x = VolnaTheme.tokens.sizing.filterIconX, y = VolnaTheme.tokens.sizing.topTitleY)
-            .size(VolnaTheme.tokens.spacing.xl)
             .clickable { onIntent(SlotListIntent.OpenFilters) },
-        textAlign = TextAlign.Center,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontWeight = FontWeight.Bold,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        size = VolnaTheme.tokens.spacing.xl,
     )
     when (val slots = state.slots) {
         Loadable.Initial -> SlotInitialLoader()
@@ -1012,8 +1021,8 @@ private fun SlotDetailsContent(
                 .offset(y = 74.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            CircleActionButton(text = "‹", onClick = onBack)
-            CircleActionButton(text = "↗", onClick = {})
+            CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
+            CircleActionButton(icon = Icons.Share, contentDescription = "Поделиться", onClick = {})
         }
         Column(
             modifier = Modifier
@@ -1095,21 +1104,25 @@ private fun SlotDetailsHero() {
 
 @Composable
 private fun CircleActionButton(
-    text: String,
+    icon: ImageVector,
+    contentDescription: String,
     onClick: () -> Unit,
 ) {
-    Text(
-        text = text,
+    Box(
         modifier = Modifier
             .size(40.dp)
             .shadow(4.dp, RoundedCornerShape(200.dp))
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(200.dp))
-            .clickable { onClick() }
-            .padding(top = 4.dp),
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.headlineSmall,
-        color = MaterialTheme.colorScheme.primary,
-    )
+            .clickable { onClick() },
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        VolnaIcon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = MaterialTheme.colorScheme.primary,
+            size = 20.dp,
+        )
+    }
 }
 
 @Composable
@@ -1314,7 +1327,7 @@ private fun BookingFormScreen(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
         ) {
-            CircleActionButton(text = "‹", onClick = onBack)
+            CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
             Text(
                 text = "Оформление записи",
                 style = MaterialTheme.typography.headlineSmall,
@@ -1797,10 +1810,11 @@ private fun BookingSuccessSummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "ⓘ",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                VolnaIcon(
+                    imageVector = Icons.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    size = 16.dp,
                 )
                 Text(
                     text = "Оплата на месте: наличные или перевод",
@@ -1859,15 +1873,14 @@ private fun CounterRow(
 
 @Composable
 private fun BackButton(onClick: () -> Unit) {
-    Text(
-        text = "‹",
+    VolnaIcon(
+        imageVector = Icons.Back,
+        contentDescription = "Назад",
         modifier = Modifier
             .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.backButtonY)
-            .size(VolnaTheme.tokens.spacing.xl)
             .clickable { onClick() },
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.headlineMedium,
-        color = MaterialTheme.colorScheme.onSurface,
+        tint = MaterialTheme.colorScheme.onSurface,
+        size = VolnaTheme.tokens.spacing.xl,
     )
 }
 
@@ -2041,19 +2054,19 @@ private fun FloatingNavigationBar(
         NavItem(
             tab = MainTab.Slots,
             selected = selectedTab == MainTab.Slots,
-            icon = "▣",
+            icon = Icons.Calendar,
             onClick = onTabSelected,
         )
         NavItem(
             tab = MainTab.Bookings,
             selected = selectedTab == MainTab.Bookings,
-            icon = "☷",
+            icon = Icons.Options,
             onClick = onTabSelected,
         )
         NavItem(
             tab = MainTab.Profile,
             selected = selectedTab == MainTab.Profile,
-            icon = "○",
+            icon = Icons.Profile,
             onClick = onTabSelected,
         )
     }
@@ -2063,21 +2076,20 @@ private fun FloatingNavigationBar(
 private fun NavItem(
     tab: MainTab,
     selected: Boolean,
-    icon: String,
+    icon: ImageVector,
     onClick: (MainTab) -> Unit,
 ) {
-    Text(
-        text = icon,
+    VolnaIcon(
+        imageVector = icon,
+        contentDescription = tab.title,
         modifier = Modifier
-            .size(VolnaTheme.tokens.spacing.xl)
             .clickable { onClick(tab) },
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.headlineSmall,
-        color = if (selected) {
+        tint = if (selected) {
             MaterialTheme.colorScheme.primary
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
+        size = VolnaTheme.tokens.spacing.xl,
     )
 }
 

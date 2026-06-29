@@ -41,6 +41,9 @@ import androidx.compose.ui.unit.sp
 import com.volna.app.core.phone.formatPhoneNumber
 import com.volna.app.core.ui.PhoneNumberVisualTransformation
 import com.volna.app.core.theme.VolnaTheme
+import com.volna.app.uikit.icons.Back
+import com.volna.app.uikit.icons.Icons
+import com.volna.app.uikit.icons.VolnaIcon
 
 @Composable
 fun AuthScreen(
@@ -414,7 +417,12 @@ private fun BackButton(onClick: () -> Unit) {
             .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.backButtonY)
             .size(VolnaTheme.tokens.spacing.xl + VolnaTheme.tokens.spacing.xs),
     ) {
-        Text("‹", fontSize = 28.sp, color = MaterialTheme.colorScheme.primary)
+        VolnaIcon(
+            imageVector = Icons.Back,
+            contentDescription = "Назад",
+            tint = MaterialTheme.colorScheme.primary,
+            size = VolnaTheme.tokens.spacing.lg,
+        )
     }
 }
 

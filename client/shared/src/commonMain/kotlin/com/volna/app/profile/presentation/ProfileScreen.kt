@@ -49,6 +49,10 @@ import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.core.ui.Loadable
 import com.volna.app.core.ui.PhoneNumberVisualTransformation
+import com.volna.app.uikit.icons.ArrowRight
+import com.volna.app.uikit.icons.Edit
+import com.volna.app.uikit.icons.Icons
+import com.volna.app.uikit.icons.VolnaIcon
 
 @Composable
 fun ProfileScreen(
@@ -363,10 +367,11 @@ private fun ProfileInfoRow(
                 color = if (placeholder) Color(0xFF797979) else MaterialTheme.colorScheme.onSurface,
             )
         }
-        Text(
-            text = "✎",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+        VolnaIcon(
+            imageVector = Icons.Edit,
+            contentDescription = "Редактировать",
+            tint = MaterialTheme.colorScheme.onSurface,
+            size = VolnaTheme.tokens.spacing.lg,
         )
     }
 }
@@ -392,12 +397,12 @@ private fun ProfileLinks(
         )
         InfoLine(
             label = "Правила клуба",
-            value = if (appConfig.rulesUrl != null) "›" else "не настроено",
+            value = if (appConfig.rulesUrl != null) null else "не настроено",
             onClick = appConfig.rulesUrl?.let { url -> { onOpenExternalUrl(url) } },
         )
         InfoLine(
             label = "Поддержка",
-            value = if (appConfig.supportUrl != null) "›" else "не настроено",
+            value = if (appConfig.supportUrl != null) null else "не настроено",
             onClick = appConfig.supportUrl?.let { url -> { onOpenExternalUrl(url) } },
         )
         InfoLine("Версия приложения", appConfig.appVersion)
@@ -431,7 +436,7 @@ private fun ProfileLogoutButton(
 @Composable
 private fun InfoLine(
     label: String,
-    value: String,
+    value: String?,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
@@ -446,11 +451,20 @@ private fun InfoLine(
             style = MaterialTheme.typography.bodyMedium,
             color = Color(0xFF797979),
         )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF797979),
-        )
+        if (value != null) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF797979),
+            )
+        } else {
+            VolnaIcon(
+                imageVector = Icons.ArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF797979),
+                size = 16.dp,
+            )
+        }
     }
 }
 

@@ -53,6 +53,10 @@ import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.map.RouteMapSheet
+import com.volna.app.uikit.icons.Back
+import com.volna.app.uikit.icons.Icons
+import com.volna.app.uikit.icons.Info
+import com.volna.app.uikit.icons.VolnaIcon
 import kotlinx.coroutines.delay
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.Instant
@@ -664,7 +668,12 @@ private fun BookingDetailsPriceBlock(booking: Booking) {
             horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
-            Text("ⓘ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            VolnaIcon(
+                imageVector = Icons.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                size = 16.dp,
+            )
             Text(
                 text = "Оплата на месте: наличные или перевод",
                 style = MaterialTheme.typography.labelMedium,
@@ -870,15 +879,14 @@ private fun BookingScreenTitle(title: String) {
 
 @Composable
 private fun BookingBackButton(onClick: () -> Unit) {
-    Text(
-        text = "‹",
+    VolnaIcon(
+        imageVector = Icons.Back,
+        contentDescription = "Назад",
         modifier = Modifier
             .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.backButtonY)
-            .size(VolnaTheme.tokens.spacing.xl)
             .clickable { onClick() },
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.headlineMedium,
-        color = MaterialTheme.colorScheme.onSurface,
+        tint = MaterialTheme.colorScheme.onSurface,
+        size = VolnaTheme.tokens.spacing.xl,
     )
 }
 
