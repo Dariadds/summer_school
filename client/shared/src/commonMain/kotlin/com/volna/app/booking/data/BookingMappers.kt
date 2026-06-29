@@ -27,6 +27,7 @@ fun BookingDto.toDomain(): Booking = Booking(
     createdAt = createdAt,
     cancelledAt = cancelledAt,
     slot = slot?.toDomain(),
+    isFirstBooking = isFirstBooking,
 )
 
 fun BookingStatus.toApiValue(): String = when (this) {

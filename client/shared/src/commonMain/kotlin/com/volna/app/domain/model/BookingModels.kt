@@ -19,6 +19,7 @@ data class Booking(
     val createdAt: Instant,
     val cancelledAt: Instant?,
     val slot: Slot?,
+    val isFirstBooking: Boolean?,
 )
 
 data class BookingDraft(

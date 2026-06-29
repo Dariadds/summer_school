@@ -295,7 +295,7 @@ private fun BookingDetailsContent(
         BookingInfoBlock {
             Text("Цена", fontWeight = FontWeight.Bold)
             Text("${booking.priceTotal?.value ?: 0} ₽", style = MaterialTheme.typography.headlineSmall)
-            Text("Оплата на месте перед прогулкой", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Оплата на месте: наличные или перевод на карту.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         BookingInfoBlock {
             Text("Записано: ${booking.createdAt.toUiText()}")

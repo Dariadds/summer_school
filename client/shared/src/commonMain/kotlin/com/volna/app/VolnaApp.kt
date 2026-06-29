@@ -336,6 +336,7 @@ private fun MainTabs(
                     is SlotsRoute.Booking -> BookingFormScreen(
                         slot = route.slot,
                         state = bookingFormState,
+                        appConfig = appConfig,
                         onIntent = onBookingFormIntent,
                         pushPermissionState = pushPermissionState,
                         onPushPermissionIntent = onPushPermissionIntent,
@@ -818,6 +819,7 @@ private fun SlotDetailsContent(
 private fun BookingFormScreen(
     slot: Slot,
     state: BookingFormState,
+    appConfig: AppConfig,
     onIntent: (BookingFormIntent) -> Unit,
     pushPermissionState: PushPermissionState,
     onPushPermissionIntent: (PushPermissionIntent) -> Unit,
@@ -837,11 +839,14 @@ private fun BookingFormScreen(
         )
         state.createdBooking?.let { booking ->
             LaunchedEffect(booking.id) {
-                onPushPermissionIntent(PushPermissionIntent.BookingSuccessShown)
+                if (booking.isFirstBooking == true) {
+                    onPushPermissionIntent(PushPermissionIntent.BookingSuccessShown)
+                }
             }
             BookingSuccessSheet(
                 booking = booking,
                 fallbackPrice = state.totalPrice?.value ?: 0,
+                reminderHours = appConfig.reminderHours,
                 pushPermissionState = pushPermissionState,
                 onPushPermissionIntent = onPushPermissionIntent,
                 onDone = onDone,
@@ -892,7 +897,7 @@ private fun BookingFormContent(
             Text("Итого", fontWeight = FontWeight.Bold)
             Text("${state.totalPrice?.value ?: 0} ₽", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "Оплата на месте перед прогулкой",
+                text = "Оплата на месте: наличные или перевод на карту.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             state.validationMessage?.let {
@@ -919,6 +924,7 @@ private fun BookingFormContent(
 private fun BookingSuccessSheet(
     booking: Booking,
     fallbackPrice: Int,
+    reminderHours: Int?,
     pushPermissionState: PushPermissionState,
     onPushPermissionIntent: (PushPermissionIntent) -> Unit,
     onDone: () -> Unit,
@@ -953,7 +959,7 @@ private fun BookingSuccessSheet(
                 .padding(VolnaTheme.tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         ) {
-            Text("Запись создана", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Вы записаны", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             booking.slot?.let { slot ->
                 Text(slot.route.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(slot.startAt.toUiText(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -963,7 +969,7 @@ private fun BookingSuccessSheet(
             Text("Прокатных досок: ${booking.rentalCount}")
             Text("Своя доска: ${(booking.seatsCount - booking.rentalCount).coerceAtLeast(0)}")
             Text("${booking.priceTotal?.value ?: fallbackPrice} ₽", style = MaterialTheme.typography.headlineSmall)
-            Text("Оплата на месте перед прогулкой", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Оплата на месте: наличные или перевод на карту.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (pushPermissionState.showPrompt) {
                 Column(
                     modifier = Modifier
@@ -975,7 +981,10 @@ private fun BookingSuccessSheet(
                         .padding(VolnaTheme.tokens.spacing.md),
                     verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
                 ) {
-                    Text("Напомним перед стартом", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = reminderHours?.let { "Напомним за $it часов до старта" } ?: "Напомним перед стартом",
+                        fontWeight = FontWeight.Bold,
+                    )
                     Text("Включите уведомления, чтобы не пропустить прогулку")
                     Row(horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
                         Button(onClick = { onPushPermissionIntent(PushPermissionIntent.RequestPermission) }) {

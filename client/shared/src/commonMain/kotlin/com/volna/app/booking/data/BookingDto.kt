@@ -41,4 +41,6 @@ data class BookingDto(
     @SerialName("cancelled_at")
     val cancelledAt: Instant? = null,
     val slot: SlotDto? = null,
+    @SerialName("is_first_booking")
+    val isFirstBooking: Boolean? = null,
 )
