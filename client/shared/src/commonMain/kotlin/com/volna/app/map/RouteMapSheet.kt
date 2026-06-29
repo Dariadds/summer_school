@@ -1,5 +1,6 @@
 package com.volna.app.map
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,16 +8,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.domain.model.MeetingPoint
 import com.volna.app.domain.model.Route
@@ -33,13 +39,13 @@ fun RouteMapSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.72f))
+            .background(Color.Black.copy(alpha = 0.6f))
             .clickable { onDismiss() },
         contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
     ) {
         Column(
             modifier = Modifier
-                .width(VolnaTheme.tokens.sizing.contentWidth)
+                .fillMaxWidth()
                 .clickable {}
                 .shadow(
                     elevation = VolnaTheme.tokens.spacing.sm,
@@ -55,41 +61,110 @@ fun RouteMapSheet(
                         topEnd = VolnaTheme.tokens.radius.lg,
                     ),
                 )
-                .padding(VolnaTheme.tokens.spacing.md),
+                .padding(
+                    start = VolnaTheme.tokens.spacing.md,
+                    end = VolnaTheme.tokens.spacing.md,
+                    bottom = VolnaTheme.tokens.spacing.md,
+                ),
             verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         ) {
-            Text("Карта маршрута", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier
+                    .padding(top = VolnaTheme.tokens.spacing.xs)
+                    .height(4.dp)
+                    .fillMaxWidth(),
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.12f)
+                        .height(4.dp)
+                        .background(
+                            color = Color(0xFFCCCCCC).copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                        ),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Маршрут",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Закрыть",
+                    modifier = Modifier.clickable { onDismiss() },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xxs),
+            ) {
+                RouteMapTag(text = route.type.toUiText(), color = Color(0xFF92FF9A))
+                RouteMapTag(text = route.name, color = Color(0xFFFFF897))
+            }
             RouteMapPreview(
                 route = route,
                 meetingPoint = meetingPoint,
                 onOpenExternal = { mapLauncher.openExternalMap(meetingPoint) },
             )
-            Text(route.name, fontWeight = FontWeight.Bold)
-            Text("${route.type.toUiText()}, ${route.durationMin} мин")
-            Text("Место встречи: ${meetingPoint.title.ifBlank { "уточняется" }}")
-            OutlinedButton(
-                onClick = { mapLauncher.buildRouteTo(meetingPoint) },
+            Text(
+                text = "Прогулка по маршруту займет ${route.durationMin} минут",
                 modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFF797979),
+                textAlign = TextAlign.Center,
+            )
+            Button(
+                onClick = { mapLauncher.buildRouteTo(meetingPoint) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
             ) {
                 Text("Проложить маршрут")
             }
-            OutlinedButton(
+            Button(
                 onClick = { mapLauncher.openExternalMap(meetingPoint) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             ) {
-                Text("Открыть в картах")
-            }
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Закрыть")
+                Text("Открыть в Яндекс.Картах")
             }
         }
     }
 }
 
+@Composable
+private fun RouteMapTag(text: String, color: Color) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .background(color = color, shape = RoundedCornerShape(VolnaTheme.tokens.radius.sm))
+            .padding(horizontal = VolnaTheme.tokens.spacing.xs, vertical = VolnaTheme.tokens.spacing.xxs),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+}
+
 private fun RouteType.toUiText(): String = when (this) {
-    RouteType.Novice -> "для новичков"
-    RouteType.Experienced -> "для опытных"
+    RouteType.Novice -> "Новичковый"
+    RouteType.Experienced -> "Опытный"
 }
