@@ -344,10 +344,12 @@ private fun MainTabs(
                         onBack = { slotsRoute = SlotsRoute.Details(route.slot.id) },
                         onDone = {
                             onBookingFormIntent(BookingFormIntent.SuccessDismissed)
+                            onSlotListIntent(SlotListIntent.Retry)
                             slotsRoute = SlotsRoute.List
                         },
                         onOpenBookings = {
                             onBookingFormIntent(BookingFormIntent.SuccessDismissed)
+                            onSlotListIntent(SlotListIntent.Retry)
                             slotsRoute = SlotsRoute.List
                             bookingsRoute = BookingsRoute.List
                             onBookingListIntent(BookingListIntent.Refresh)
