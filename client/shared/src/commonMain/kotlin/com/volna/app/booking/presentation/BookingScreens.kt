@@ -35,6 +35,7 @@ import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.BookingStatus
 import com.volna.app.domain.model.RouteType
+import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.map.RouteMapPreview
@@ -236,7 +237,7 @@ private fun BookingCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("${booking.priceTotal?.value ?: 0} ₽", fontWeight = FontWeight.Bold)
+            Text("${BookingPriceCalculator.calculate(booking)?.value ?: 0} ₽", fontWeight = FontWeight.Bold)
             Text(booking.statusLabel(pastGroup = pastGroup), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -294,7 +295,7 @@ private fun BookingDetailsContent(
         }
         BookingInfoBlock {
             Text("Цена", fontWeight = FontWeight.Bold)
-            Text("${booking.priceTotal?.value ?: 0} ₽", style = MaterialTheme.typography.headlineSmall)
+            Text("${BookingPriceCalculator.calculate(booking)?.value ?: 0} ₽", style = MaterialTheme.typography.headlineSmall)
             Text("Оплата на месте: наличные или перевод на карту.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         BookingInfoBlock {

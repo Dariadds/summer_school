@@ -82,6 +82,7 @@ import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.policy.AvailabilityPolicy
+import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.map.RouteMapPreview
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.map.toMapUiState
@@ -956,6 +957,7 @@ private fun BookingSuccessSheet(
                         topEnd = VolnaTheme.tokens.radius.lg,
                     ),
                 )
+                .verticalScroll(rememberScrollState())
                 .padding(VolnaTheme.tokens.spacing.md),
             verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         ) {
@@ -968,7 +970,10 @@ private fun BookingSuccessSheet(
             Text("Мест: ${booking.seatsCount}")
             Text("Прокатных досок: ${booking.rentalCount}")
             Text("Своя доска: ${(booking.seatsCount - booking.rentalCount).coerceAtLeast(0)}")
-            Text("${booking.priceTotal?.value ?: fallbackPrice} ₽", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "${BookingPriceCalculator.calculate(booking)?.value ?: fallbackPrice} ₽",
+                style = MaterialTheme.typography.headlineSmall,
+            )
             Text("Оплата на месте: наличные или перевод на карту.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (pushPermissionState.showPrompt) {
                 Column(
