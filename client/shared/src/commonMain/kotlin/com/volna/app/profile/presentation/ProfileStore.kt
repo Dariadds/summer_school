@@ -4,6 +4,7 @@ import com.volna.app.auth.AuthRepository
 import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.phone.isRussianPhoneInputComplete
 import com.volna.app.core.phone.normalizePhoneE164
@@ -130,6 +131,7 @@ class ProfileStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to load profile")
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         effects.send(ProfileEffect.SignedOut)
@@ -249,6 +251,7 @@ class ProfileStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to update profile name")
                     handleActionFailure(failure.asAppFailure(), ::profileUpdateFieldError, ::profileUpdateMessage)
                 },
             )
@@ -272,6 +275,7 @@ class ProfileStore(
                     requestPhoneChangeCode(phone)
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to update profile name before phone change")
                     handleActionFailure(failure.asAppFailure(), ::profileUpdateFieldError, ::profileUpdateMessage)
                 },
             )
@@ -298,6 +302,7 @@ class ProfileStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to request phone change code")
                     val appFailure = failure.asAppFailure()
                     if (appFailure.isTooManyRequests()) {
                         startResendTimer(mutableState.value.resendAfterSeconds ?: DEFAULT_RESEND_SECONDS)
@@ -341,6 +346,7 @@ class ProfileStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to confirm phone change")
                     handleActionFailure(failure.asAppFailure(), ::confirmPhoneFieldError, ::confirmPhoneMessage)
                 },
             )
@@ -384,7 +390,8 @@ class ProfileStore(
                     mutableState.update { it.copy(actionStatus = ActionStatus.Idle) }
                     effects.send(ProfileEffect.SignedOut)
                 },
-                onFailure = {
+                onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to logout")
                     mutableState.update { it.copy(actionStatus = ActionStatus.Idle) }
                     effects.send(ProfileEffect.SignedOut)
                 },
@@ -410,6 +417,7 @@ class ProfileStore(
                     effects.send(ProfileEffect.SignedOut)
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to delete account")
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         effects.send(ProfileEffect.SignedOut)

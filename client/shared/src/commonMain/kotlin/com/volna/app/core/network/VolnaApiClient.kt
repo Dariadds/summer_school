@@ -3,6 +3,7 @@ package com.volna.app.core.network
 import com.volna.app.auth.SessionRepository
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.AppFailureException
+import com.volna.app.core.logging.AppLogger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
@@ -44,7 +45,10 @@ class VolnaApiClient(
         response.toResult<T>()
     }.fold(
         onSuccess = { it },
-        onFailure = { Result.failure(it.toAppFailureException()) },
+        onFailure = { failure ->
+            AppLogger.e(failure, "Request failed: $path")
+            Result.failure(failure.toAppFailureException())
+        },
     )
 
     suspend fun sendUnit(
@@ -62,7 +66,10 @@ class VolnaApiClient(
         response.toUnitResult()
     }.fold(
         onSuccess = { it },
-        onFailure = { Result.failure(it.toAppFailureException()) },
+        onFailure = { failure ->
+            AppLogger.e(failure, "Unit request failed: $path")
+            Result.failure(failure.toAppFailureException())
+        },
     )
 
     @PublishedApi
@@ -93,6 +100,8 @@ class VolnaApiClient(
         val text = bodyAsText()
         val apiFailure = runCatching {
             json.decodeFromString<ApiErrorDto>(text).toFailure()
+        }.onFailure { failure ->
+            AppLogger.e(failure, "Failed to parse API error response")
         }.getOrNull()
         return apiFailure ?: AppFailure.Unknown
     }

@@ -4,6 +4,7 @@ import com.volna.app.booking.BookingRepository
 import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.time.AppClock
 import com.volna.app.core.ui.ActionStatus
@@ -99,7 +100,10 @@ class BookingDetailsStore(
                 onSuccess = { booking ->
                     mutableState.update { it.copy(booking = Loadable.Content(booking)) }
                 },
-                onFailure = { failure -> handleFailure(failure.asAppFailure(), contentFallback = null) },
+                onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to load booking details")
+                    handleFailure(failure.asAppFailure(), contentFallback = null)
+                },
             )
         }
     }
@@ -129,6 +133,7 @@ class BookingDetailsStore(
                     effects.send(BookingDetailsEffect.BookingChanged)
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to cancel booking")
                     handleCancelFailure(failure.asAppFailure(), booking)
                 },
             )
@@ -158,6 +163,7 @@ class BookingDetailsStore(
                     effects.send(BookingDetailsEffect.BookingChanged)
                 },
                 onFailure = { refreshFailure ->
+                    AppLogger.e(refreshFailure, "Failed to refresh booking after cancel failure")
                     handleFailure(refreshFailure.asAppFailure(), contentFallback = null)
                 },
             )

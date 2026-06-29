@@ -3,6 +3,7 @@ package com.volna.app.map
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.domain.model.MeetingPoint
 
 actual object PlatformMapLauncher : MapLauncher {
@@ -33,5 +34,6 @@ actual object PlatformMapLauncher : MapLauncher {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { appContext.startActivity(intent) }
+            .onFailure { failure -> AppLogger.e(failure, "Failed to open map URI: $uri") }
     }
 }

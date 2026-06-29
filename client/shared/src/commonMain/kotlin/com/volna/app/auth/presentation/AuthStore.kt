@@ -4,6 +4,7 @@ import com.volna.app.auth.AuthRepository
 import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.phone.isRussianPhoneInputComplete
 import com.volna.app.core.phone.normalizePhoneE164
@@ -153,6 +154,7 @@ class AuthStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to request auth code")
                     val appFailure = failure.asAppFailure()
                     if (appFailure.isTooManyRequests()) {
                         startResendTimer(mutableState.value.resendAfterSeconds ?: DEFAULT_RESEND_SECONDS)
@@ -198,6 +200,7 @@ class AuthStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to verify auth code")
                     val appFailure = failure.asAppFailure()
                     if (appFailure.isTooManyRequests()) {
                         startResendTimer(current.resendAfterSeconds ?: DEFAULT_RESEND_SECONDS)
@@ -258,6 +261,7 @@ class AuthStore(
                     effects.send(AuthEffect.Authenticated)
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to update profile name during auth")
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         resetToPhoneAfterUnauthorized()

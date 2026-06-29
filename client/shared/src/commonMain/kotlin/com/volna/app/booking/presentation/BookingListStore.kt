@@ -4,6 +4,7 @@ import com.volna.app.booking.BookingRepository
 import com.volna.app.catalog.PageRequest
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.time.AppClock
 import com.volna.app.core.ui.EmptyReason
@@ -91,6 +92,7 @@ class BookingListStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to load bookings")
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         effects.send(BookingListEffect.SignedOut)

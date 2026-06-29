@@ -6,6 +6,7 @@ import com.volna.app.catalog.SlotFilters
 import com.volna.app.catalog.SlotRepository
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.ui.EmptyReason
 import com.volna.app.core.ui.Loadable
@@ -116,6 +117,7 @@ class SlotListStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to load slots")
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         effects.send(SlotListEffect.SignedOut)
@@ -207,6 +209,7 @@ class SlotListStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to load instructors")
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         effects.send(SlotListEffect.SignedOut)

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import com.volna.app.core.config.AppConfig
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.phone.formatPhoneNumber
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.ui.ActionStatus
@@ -56,6 +57,7 @@ fun ProfileScreen(
     val uriHandler = LocalUriHandler.current
     val openExternalUrl: (String) -> Unit = { url ->
         runCatching { uriHandler.openUri(url) }
+            .onFailure { failure -> AppLogger.e(failure, "Failed to open external URL: $url") }
     }
 
     LaunchedEffect(Unit) {

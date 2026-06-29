@@ -3,6 +3,7 @@ package com.volna.app.catalog.presentation
 import com.volna.app.catalog.SlotRepository
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Slot
@@ -60,6 +61,7 @@ class SlotDetailsStore(
             slotRepository.getSlot(slotId).fold(
                 onSuccess = { slot -> mutableState.update { it.copy(slot = Loadable.Content(slot)) } },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to load slot details")
                     val appFailure = failure.asAppFailure()
                     if (appFailure == AppFailure.Unauthorized) {
                         effects.send(SlotDetailsEffect.SignedOut)

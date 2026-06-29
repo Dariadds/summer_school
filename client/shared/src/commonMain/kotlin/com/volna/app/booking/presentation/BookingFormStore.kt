@@ -6,6 +6,7 @@ import com.volna.app.booking.IdempotencyKeyFactory
 import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
+import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.domain.model.Booking
@@ -186,6 +187,7 @@ class BookingFormStore(
                     }
                 },
                 onFailure = { failure ->
+                    AppLogger.e(failure, "Failed to create booking")
                     handleFailure(failure.asAppFailure())
                 },
             )
