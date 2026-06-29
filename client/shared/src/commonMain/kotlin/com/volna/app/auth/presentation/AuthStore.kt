@@ -5,6 +5,9 @@ import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
 import com.volna.app.core.mvi.MviStore
+import com.volna.app.core.phone.isRussianPhoneInputComplete
+import com.volna.app.core.phone.normalizePhoneE164
+import com.volna.app.core.phone.sanitizePhoneInput
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.domain.model.Client
 import com.volna.app.domain.model.Phone
@@ -38,7 +41,7 @@ data class AuthState(
     val message: String? = null,
 ) {
     val isSubmitting: Boolean = actionStatus == ActionStatus.Submitting
-    val isPhoneValid: Boolean = phoneInput.isE164Phone()
+    val isPhoneValid: Boolean = phoneInput.isRussianPhoneInputComplete()
     val isCodeValid: Boolean = codeInput.matches(Regex("^\\d{4,6}$"))
     val isNameValid: Boolean = nameInput.trim().length in 1..100
     val canRequestCode: Boolean = !isSubmitting && isPhoneValid && resendSecondsRemaining == 0
@@ -95,7 +98,7 @@ class AuthStore(
     private fun onPhoneChanged(value: String) {
         mutableState.update {
             it.copy(
-                phoneInput = value.trim(),
+                phoneInput = sanitizePhoneInput(value),
                 fieldError = null,
                 message = null,
             )
@@ -123,8 +126,8 @@ class AuthStore(
     }
 
     private fun requestCode() {
-        val phoneValue = mutableState.value.phoneInput
-        if (!phoneValue.isE164Phone()) {
+        val phoneValue = normalizePhoneE164(mutableState.value.phoneInput)
+        if (!mutableState.value.isPhoneValid) {
             mutableState.update {
                 it.copy(fieldError = "Похоже, номер введён не полностью")
             }
@@ -175,7 +178,7 @@ class AuthStore(
 
         scope.launch {
             mutableState.update { it.copy(actionStatus = ActionStatus.Submitting, message = null) }
-            val result = authRepository.verifyCode(Phone(current.phoneInput), current.codeInput)
+            val result = authRepository.verifyCode(Phone(normalizePhoneE164(current.phoneInput)), current.codeInput)
             result.fold(
                 onSuccess = { response ->
                     resendTimer?.cancel()
@@ -337,5 +340,3 @@ class AuthStore(
         const val DEFAULT_RESEND_SECONDS = 60
     }
 }
-
-private fun String.isE164Phone(): Boolean = Regex("^\\+[1-9]\\d{1,14}$").matches(this)

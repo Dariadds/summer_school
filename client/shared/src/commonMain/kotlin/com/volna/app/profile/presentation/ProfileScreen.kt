@@ -30,15 +30,20 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import com.volna.app.core.config.AppConfig
+import com.volna.app.core.phone.formatPhoneNumber
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.core.ui.Loadable
+import com.volna.app.core.ui.PhoneNumberVisualTransformation
 
 @Composable
 fun ProfileScreen(
@@ -208,6 +213,8 @@ private fun ProfileEditContent(
         onValueChange = { onIntent(ProfileIntent.PhoneChanged(it)) },
         label = "Телефон",
         enabled = !state.isSubmitting,
+        keyboardType = KeyboardType.Phone,
+        visualTransformation = PhoneNumberVisualTransformation(),
     )
     state.fieldError?.let {
         Text(it, color = MaterialTheme.colorScheme.error)
@@ -245,7 +252,7 @@ private fun ProfilePhoneConfirmContent(
         fontWeight = FontWeight.Bold,
     )
     Text(
-        text = state.pendingPhone ?: state.phoneInput,
+        text = formatPhoneNumber(state.pendingPhone ?: state.phoneInput),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     ProfileTextField(
@@ -298,12 +305,16 @@ private fun ProfileTextField(
     onValueChange: (String) -> Unit,
     label: String,
     enabled: Boolean,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
         singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        visualTransformation = visualTransformation,
         label = { Text(label) },
         modifier = Modifier.fillMaxWidth(),
     )

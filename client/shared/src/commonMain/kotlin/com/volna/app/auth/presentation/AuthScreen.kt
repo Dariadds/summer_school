@@ -35,8 +35,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import com.volna.app.core.phone.formatPhoneNumber
+import com.volna.app.core.ui.PhoneNumberVisualTransformation
 import com.volna.app.core.theme.VolnaTheme
 
 @Composable
@@ -95,8 +98,9 @@ private fun PhoneStep(
         value = state.phoneInput,
         onValueChange = { onIntent(AuthIntent.PhoneChanged(it)) },
         label = "Телефон",
-        placeholder = "+7 ___-__-__",
+        placeholder = "+7 (___) ___-__-__",
         keyboardType = KeyboardType.Phone,
+        visualTransformation = PhoneNumberVisualTransformation(),
         fieldError = state.fieldError,
         modifier = Modifier.offset(
             x = VolnaTheme.tokens.spacing.md,
@@ -130,7 +134,7 @@ private fun OtpStep(
     BackButton(onClick = { onIntent(AuthIntent.BackToPhone) })
     AuthHeader(
         title = "Подтверждение",
-        description = "Мы отправили код на ${state.phoneInput}",
+        description = "Мы отправили код на ${formatPhoneNumber(state.phoneInput)}",
     )
     OtpCodeInput(
         value = state.codeInput,
@@ -257,6 +261,7 @@ private fun AuthTextField(
     label: String,
     placeholder: String,
     keyboardType: KeyboardType,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     fieldError: String?,
     modifier: Modifier = Modifier,
 ) {
@@ -270,6 +275,7 @@ private fun AuthTextField(
             onValueChange = onValueChange,
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            visualTransformation = visualTransformation,
             textStyle = TextStyle(
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 16.sp,

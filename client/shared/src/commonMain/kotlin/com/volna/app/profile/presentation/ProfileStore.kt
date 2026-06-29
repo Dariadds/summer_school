@@ -5,6 +5,9 @@ import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
 import com.volna.app.core.mvi.MviStore
+import com.volna.app.core.phone.isRussianPhoneInputComplete
+import com.volna.app.core.phone.normalizePhoneE164
+import com.volna.app.core.phone.sanitizePhoneInput
 import com.volna.app.core.ui.ActionStatus
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Client
@@ -43,7 +46,7 @@ data class ProfileState(
 ) {
     val isSubmitting: Boolean = actionStatus == ActionStatus.Submitting
     val isNameValid: Boolean = nameInput.trim().length in 1..100
-    val isPhoneValid: Boolean = phoneInput.isE164Phone()
+    val isPhoneValid: Boolean = phoneInput.isRussianPhoneInputComplete()
     val isCodeValid: Boolean = codeInput.matches(Regex("^\\d{4,6}$"))
     val canSave: Boolean = !isSubmitting && isNameValid && isPhoneValid
     val canConfirmPhone: Boolean = !isSubmitting && isCodeValid
@@ -122,7 +125,7 @@ class ProfileStore(
                         it.copy(
                             profile = Loadable.Content(client),
                             nameInput = client.name.orEmpty(),
-                            phoneInput = client.phone.value,
+                            phoneInput = sanitizePhoneInput(client.phone.value),
                         )
                     }
                 },
@@ -144,7 +147,7 @@ class ProfileStore(
             it.copy(
                 mode = ProfileMode.Edit,
                 nameInput = client.name.orEmpty(),
-                phoneInput = client.phone.value,
+                phoneInput = sanitizePhoneInput(client.phone.value),
                 codeInput = "",
                 pendingPhone = null,
                 fieldError = null,
@@ -160,7 +163,7 @@ class ProfileStore(
             it.copy(
                 mode = ProfileMode.View,
                 nameInput = client?.name.orEmpty(),
-                phoneInput = client?.phone?.value.orEmpty(),
+                phoneInput = sanitizePhoneInput(client?.phone?.value.orEmpty()),
                 codeInput = "",
                 pendingPhone = null,
                 ttlSeconds = null,
@@ -185,7 +188,7 @@ class ProfileStore(
     private fun onPhoneChanged(value: String) {
         mutableState.update {
             it.copy(
-                phoneInput = value.trim(),
+                phoneInput = sanitizePhoneInput(value),
                 fieldError = null,
                 message = null,
             )
@@ -206,12 +209,12 @@ class ProfileStore(
         val current = mutableState.value
         val currentClient = (current.profile as? Loadable.Content)?.value ?: return
         val name = current.nameInput.trim()
-        val phone = current.phoneInput.trim()
+        val phone = normalizePhoneE164(current.phoneInput)
         if (name.length !in 1..100) {
             mutableState.update { it.copy(fieldError = "Проверьте имя — кажется, тут лишние символы") }
             return
         }
-        if (!phone.isE164Phone()) {
+        if (!current.isPhoneValid) {
             mutableState.update { it.copy(fieldError = "Похоже, номер введён не полностью") }
             return
         }
@@ -239,7 +242,7 @@ class ProfileStore(
                             profile = Loadable.Content(client),
                             mode = ProfileMode.View,
                             nameInput = client.name.orEmpty(),
-                            phoneInput = client.phone.value,
+                            phoneInput = sanitizePhoneInput(client.phone.value),
                             actionStatus = ActionStatus.Idle,
                             message = "Профиль обновлён",
                         )
@@ -307,7 +310,7 @@ class ProfileStore(
 
     private fun confirmPhone() {
         val current = mutableState.value
-        val pendingPhone = current.pendingPhone ?: current.phoneInput
+        val pendingPhone = current.pendingPhone ?: normalizePhoneE164(current.phoneInput)
         if (!current.isCodeValid) {
             mutableState.update { it.copy(fieldError = "Введите код из SMS") }
             return
@@ -326,7 +329,7 @@ class ProfileStore(
                             profile = Loadable.Content(client),
                             mode = ProfileMode.View,
                             nameInput = client.name.orEmpty(),
-                            phoneInput = client.phone.value,
+                            phoneInput = sanitizePhoneInput(client.phone.value),
                             codeInput = "",
                             pendingPhone = null,
                             ttlSeconds = null,
@@ -345,7 +348,7 @@ class ProfileStore(
     }
 
     private fun resendPhoneCode() {
-        val phone = mutableState.value.pendingPhone ?: mutableState.value.phoneInput
+        val phone = mutableState.value.pendingPhone ?: normalizePhoneE164(mutableState.value.phoneInput)
         if (!mutableState.value.canResendCode || !phone.isE164Phone()) return
         requestPhoneChangeCode(phone)
     }
