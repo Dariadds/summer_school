@@ -7,6 +7,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.header
@@ -106,6 +108,10 @@ class VolnaApiClient(
             expectSuccess = false
             install(ContentNegotiation) {
                 json(json)
+            }
+            install(Logging) {
+                level = LogLevel.BODY
+                sanitizeHeader { header -> header == HttpHeaders.Authorization }
             }
             install(HttpTimeout) {
                 requestTimeoutMillis = 20_000
