@@ -97,18 +97,10 @@ private fun BookingFormContent(
         )
         if (slot != null) {
             BookingBoardsSection(
-                seatsCount = state.seatsCount,
-                rentalCount = state.rentalCount,
+                boardSelections = state.boardSelections,
                 freeRentalBoards = slot.freeRentalBoards,
-                onTargetRentalCount = { target ->
-                    when {
-                        target > state.rentalCount -> repeat(target - state.rentalCount) {
-                            onIntent(BookingFormIntent.IncrementRental)
-                        }
-                        target < state.rentalCount -> repeat(state.rentalCount - target) {
-                            onIntent(BookingFormIntent.DecrementRental)
-                        }
-                    }
+                onBoardSelectionChange = { seatIndex, selection ->
+                    onIntent(BookingFormIntent.SetBoardSelection(seatIndex, selection))
                 },
             )
         }
@@ -254,10 +246,9 @@ private fun BookingCounterButton(
 
 @Composable
 private fun BookingBoardsSection(
-    seatsCount: Int,
-    rentalCount: Int,
+    boardSelections: List<BoardSelection>,
     freeRentalBoards: Int,
-    onTargetRentalCount: (Int) -> Unit,
+    onBoardSelectionChange: (Int, BoardSelection) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm)) {
         Text(
@@ -265,19 +256,19 @@ private fun BookingBoardsSection(
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        repeat(seatsCount) { index ->
+        boardSelections.forEachIndexed { index, selection ->
             val seatNumber = index + 1
-            val rentalSelected = seatNumber <= rentalCount
             BookingBoardRow(
                 label = if (seatNumber == 1) "Место 1 (вы)" else "Место $seatNumber (гость)",
-                rentalSelected = rentalSelected,
-                rentalEnabled = seatNumber <= freeRentalBoards,
-                onOwn = { onTargetRentalCount((seatNumber - 1).coerceAtLeast(0)) },
-                onRental = { onTargetRentalCount(seatNumber.coerceAtMost(freeRentalBoards)) },
+                rentalSelected = selection == BoardSelection.Rental,
+                rentalEnabled = selection == BoardSelection.Rental ||
+                        boardSelections.count { it == BoardSelection.Rental } < freeRentalBoards,
+                onOwn = { onBoardSelectionChange(index, BoardSelection.Own) },
+                onRental = { onBoardSelectionChange(index, BoardSelection.Rental) },
             )
         }
         Text(
-            text = "Прокатных выбрано: $rentalCount из $freeRentalBoards",
+            text = "Прокатных выбрано: ${boardSelections.count { it == BoardSelection.Rental }} из $freeRentalBoards",
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.labelMedium,

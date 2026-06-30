@@ -1,24 +1,11 @@
 package com.volna.app.map
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +16,7 @@ import com.volna.app.domain.model.Route
 import com.volna.app.domain.model.RouteType
 
 // BS-004 / LOGIC-006: route map sheet shows a mock screenshot and hands off the meeting point to external maps.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RouteMapSheet(
     route: Route,
@@ -36,44 +24,24 @@ fun RouteMapSheet(
     mapLauncher: MapLauncher = PlatformMapLauncher,
     onDismiss: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable { onDismiss() },
-        contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {}
-                .shadow(
-                    elevation = VolnaTheme.tokens.spacing.sm,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
-                    ),
-                )
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
-                    ),
-                )
-                .padding(
-                    start = VolnaTheme.tokens.spacing.md,
-                    end = VolnaTheme.tokens.spacing.md,
-                    bottom = VolnaTheme.tokens.spacing.md,
-                ),
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
-        ) {
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(
+            topStart = VolnaTheme.tokens.radius.lg,
+            topEnd = VolnaTheme.tokens.radius.lg,
+        ),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
             Box(
                 modifier = Modifier
-                    .padding(top = VolnaTheme.tokens.spacing.xs)
-                    .height(4.dp)
-                    .fillMaxWidth(),
-                contentAlignment = androidx.compose.ui.Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(top = VolnaTheme.tokens.spacing.xs),
+                contentAlignment = androidx.compose.ui.Alignment.TopCenter,
             ) {
                 Box(
                     modifier = Modifier
@@ -85,6 +53,19 @@ fun RouteMapSheet(
                         ),
                 )
             }
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = VolnaTheme.tokens.spacing.md,
+                    end = VolnaTheme.tokens.spacing.md,
+                    bottom = VolnaTheme.tokens.spacing.md,
+                ),
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

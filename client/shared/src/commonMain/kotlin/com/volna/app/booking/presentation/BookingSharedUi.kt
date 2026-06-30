@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -52,15 +53,21 @@ internal fun BookingScreenTitle(title: String) {
 
 @Composable
 internal fun BookingBackButton(onClick: () -> Unit) {
-    VolnaIcon(
-        imageVector = Icons.Back,
-        contentDescription = "Назад",
+    Box(
         modifier = Modifier
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.backButtonY)
+            .size(40.dp)
+            .shadow(4.dp, RoundedCornerShape(200.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(200.dp))
             .clickable { onClick() },
-        tint = MaterialTheme.colorScheme.onSurface,
-        size = VolnaTheme.tokens.spacing.xl,
-    )
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        VolnaIcon(
+            imageVector = Icons.Back,
+            contentDescription = "Назад",
+            tint = MaterialTheme.colorScheme.primary,
+            size = 20.dp,
+        )
+    }
 }
 
 @Composable

@@ -3,14 +3,10 @@ package com.volna.app.booking.presentation
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -371,6 +367,7 @@ private fun BookingInfoBlock(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CancelConfirmSheet(
     state: BookingDetailsState,
@@ -396,40 +393,24 @@ private fun CancelConfirmSheet(
         CancellationKind.UnavailableAfterStart,
         null -> "Запись останется активной."
     }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable(enabled = !state.isCancelling) { onIntent(BookingDetailsIntent.DismissCancel) },
-        contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {}
-                .shadow(
-                    elevation = VolnaTheme.tokens.spacing.sm,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
-                    ),
-                )
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.radius.lg,
-                        topEnd = VolnaTheme.tokens.radius.lg,
-                    ),
-                )
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    start = VolnaTheme.tokens.spacing.md,
-                    end = VolnaTheme.tokens.spacing.md,
-                    bottom = VolnaTheme.tokens.spacing.md,
-                ),
-            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
-        ) {
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { !state.isCancelling },
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = {
+            if (!state.isCancelling) {
+                onIntent(BookingDetailsIntent.DismissCancel)
+            }
+        },
+        sheetState = sheetState,
+        shape = RoundedCornerShape(
+            topStart = VolnaTheme.tokens.radius.lg,
+            topEnd = VolnaTheme.tokens.radius.lg,
+        ),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(top = VolnaTheme.tokens.spacing.xs)
@@ -439,6 +420,20 @@ private fun CancelConfirmSheet(
                         shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
                     ),
             )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = VolnaTheme.tokens.spacing.md,
+                    end = VolnaTheme.tokens.spacing.md,
+                    bottom = VolnaTheme.tokens.spacing.md,
+                ),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
+        ) {
             Text(
                 text = "Отменить запись?",
                 modifier = Modifier.fillMaxWidth(),
@@ -522,4 +517,3 @@ private fun CancelConfirmSheet(
         }
     }
 }
-

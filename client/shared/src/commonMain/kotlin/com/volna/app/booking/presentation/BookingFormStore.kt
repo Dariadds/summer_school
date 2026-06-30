@@ -11,11 +11,7 @@ import com.volna.app.core.error.asAppFailure
 import com.volna.app.core.logging.AppLogger
 import com.volna.app.core.mvi.MviStore
 import com.volna.app.core.ui.ActionStatus
-import com.volna.app.domain.model.Booking
-import com.volna.app.domain.model.BookingDraft
-import com.volna.app.domain.model.MoneyRub
-import com.volna.app.domain.model.Slot
-import com.volna.app.domain.model.SlotId
+import com.volna.app.domain.model.*
 import com.volna.app.domain.policy.AvailabilityPolicy
 import com.volna.app.domain.policy.AvailabilityViolation
 import com.volna.app.domain.policy.BookingPriceCalculator
@@ -29,7 +25,7 @@ import kotlinx.coroutines.launch
 data class BookingFormState(
     val slot: Slot? = null,
     val seatsCount: Int = 1,
-    val rentalCount: Int = 0,
+    val boardSelections: List<BoardSelection> = listOf(BoardSelection.Own),
     val actionStatus: ActionStatus = ActionStatus.Idle,
     val message: String? = null,
     val createdBooking: Booking? = null,
@@ -38,6 +34,7 @@ data class BookingFormState(
 ) {
     val isSubmitting: Boolean = actionStatus == ActionStatus.Submitting
     val availability = slot?.let(AvailabilityPolicy::availability)
+    val rentalCount: Int = boardSelections.count { it == BoardSelection.Rental }
     val totalPrice: MoneyRub? = slot?.let {
         BookingPriceCalculator.calculate(it, seatsCount, rentalCount)
     }
@@ -64,12 +61,16 @@ data class BookingPayload(
     val rentalCount: Int,
 )
 
+enum class BoardSelection {
+    Own,
+    Rental,
+}
+
 sealed interface BookingFormIntent {
     data class Open(val slot: Slot) : BookingFormIntent
     data object IncrementSeats : BookingFormIntent
     data object DecrementSeats : BookingFormIntent
-    data object IncrementRental : BookingFormIntent
-    data object DecrementRental : BookingFormIntent
+    data class SetBoardSelection(val seatIndex: Int, val selection: BoardSelection) : BookingFormIntent
     data object Submit : BookingFormIntent
     data object MessageShown : BookingFormIntent
     data object SuccessDismissed : BookingFormIntent
@@ -96,8 +97,7 @@ class BookingFormStore(
             is BookingFormIntent.Open -> open(intent.slot)
             BookingFormIntent.IncrementSeats -> changeSeats(delta = 1)
             BookingFormIntent.DecrementSeats -> changeSeats(delta = -1)
-            BookingFormIntent.IncrementRental -> changeRental(delta = 1)
-            BookingFormIntent.DecrementRental -> changeRental(delta = -1)
+            is BookingFormIntent.SetBoardSelection -> setBoardSelection(intent.seatIndex, intent.selection)
             BookingFormIntent.Submit -> submit()
             BookingFormIntent.MessageShown -> mutableState.update { it.copy(message = null) }
             BookingFormIntent.SuccessDismissed -> mutableState.update { it.copy(createdBooking = null) }
@@ -112,7 +112,7 @@ class BookingFormStore(
         mutableState.value = BookingFormState(
             slot = slot,
             seatsCount = 1.coerceAtMost(maxSeats),
-            rentalCount = 0,
+            boardSelections = List(1.coerceAtMost(maxSeats)) { BoardSelection.Own },
         )
     }
 
@@ -120,9 +120,19 @@ class BookingFormStore(
         mutableState.update { state ->
             val maxSeats = state.availability?.maxSeatsForBooking ?: 1
             val nextSeats = (state.seatsCount + delta).coerceIn(1, maxSeats.coerceAtLeast(1))
+            val nextSelections = state.boardSelections
+                .take(nextSeats)
+                .let { current ->
+                    if (current.size == nextSeats) current
+                    else current + List(nextSeats - current.size) { BoardSelection.Own }
+                }
             state.copy(
                 seatsCount = nextSeats,
-                rentalCount = state.rentalCount.coerceAtMost(nextSeats),
+                boardSelections = enforceRentalAvailability(
+                    nextSelections,
+                    nextSeats,
+                    state.slot?.freeRentalBoards ?: 0
+                ),
                 idempotencyKey = null,
                 idempotencyPayload = null,
                 message = null,
@@ -130,11 +140,17 @@ class BookingFormStore(
         }
     }
 
-    private fun changeRental(delta: Int) {
+    private fun setBoardSelection(seatIndex: Int, selection: BoardSelection) {
         mutableState.update { state ->
-            val maxRental = minOf(state.seatsCount, state.slot?.freeRentalBoards ?: 0)
+            if (seatIndex !in 0 until state.seatsCount) return@update state
+            val updatedSelections = state.boardSelections.toMutableList()
+            updatedSelections[seatIndex] = selection
             state.copy(
-                rentalCount = (state.rentalCount + delta).coerceIn(0, maxRental),
+                boardSelections = enforceRentalAvailability(
+                    selections = updatedSelections,
+                    seatsCount = state.seatsCount,
+                    freeRentalBoards = state.slot?.freeRentalBoards ?: 0,
+                ),
                 idempotencyKey = null,
                 idempotencyPayload = null,
                 message = null,
@@ -221,11 +237,34 @@ class BookingFormStore(
             state.copy(
                 slot = updatedSlot,
                 seatsCount = updatedSeatsCount,
-                rentalCount = updatedSlot?.let { state.rentalCount.coerceAtMost(minOf(updatedSeatsCount, it.freeRentalBoards)) }
-                    ?: state.rentalCount,
+                boardSelections = enforceRentalAvailability(
+                    selections = state.boardSelections.take(updatedSeatsCount),
+                    seatsCount = updatedSeatsCount,
+                    freeRentalBoards = updatedSlot?.freeRentalBoards ?: state.rentalCount,
+                ),
                 actionStatus = ActionStatus.Idle,
                 message = appFailure.toUserMessage(),
             )
+        }
+    }
+}
+
+private fun enforceRentalAvailability(
+    selections: List<BoardSelection>,
+    seatsCount: Int,
+    freeRentalBoards: Int,
+): List<BoardSelection> {
+    val trimmed = selections.take(seatsCount).let { current ->
+        if (current.size == seatsCount) current
+        else current + List(seatsCount - current.size) { BoardSelection.Own }
+    }
+    var rentalLeft = freeRentalBoards.coerceAtLeast(0)
+    return trimmed.map { selection ->
+        if (selection == BoardSelection.Rental && rentalLeft > 0) {
+            rentalLeft -= 1
+            BoardSelection.Rental
+        } else {
+            BoardSelection.Own
         }
     }
 }

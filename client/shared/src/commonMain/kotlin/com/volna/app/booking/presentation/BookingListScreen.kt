@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -85,52 +86,60 @@ private fun BookingGroupsContent(
         BookingListTab.Upcoming -> groups.upcoming
         BookingListTab.Past -> groups.past
     }
-    LazyColumn(
-        modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY),
-        contentPadding = PaddingValues(bottom = VolnaTheme.tokens.sizing.navContentBottomPadding),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
     ) {
-        if (refreshing) {
-            item {
-                Text("Обновляем записи...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LazyColumn(
+            modifier = Modifier
+                .width(VolnaTheme.tokens.sizing.contentWidth)
+                .fillMaxHeight(),
+            contentPadding = PaddingValues(
+                top = VolnaTheme.tokens.sizing.listCardTopY,
+                bottom = VolnaTheme.tokens.sizing.navContentBottomPadding + VolnaTheme.tokens.spacing.lg,
+            ),
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
+        ) {
+            if (refreshing) {
+                item {
+                    Text("Обновляем записи...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-        }
-        message?.let {
-            item {
-                Text(it, color = MaterialTheme.colorScheme.error)
+            message?.let {
+                item {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
             }
-        }
-        item {
-            BookingTabs(
-                selected = selectedTab,
-                onSelected = { selectedTab = it },
-            )
-        }
-        if (visibleBookings.isEmpty()) {
             item {
-                BookingEmptyCard(
-                    title = if (selectedTab == BookingListTab.Upcoming) {
-                        "Пока нет предстоящих записей"
-                    } else {
-                        "Здесь появятся прошедшие прогулки"
-                    },
-                    description = if (selectedTab == BookingListTab.Upcoming) {
-                        "Можно выбрать ближайшую прогулку"
-                    } else {
-                        "Отменённые записи тоже будут здесь"
-                    },
-                    onBookWalk = onBookWalk,
+                BookingTabs(
+                    selected = selectedTab,
+                    onSelected = { selectedTab = it },
                 )
             }
-        } else {
-            items(visibleBookings, key = { it.id.value }) { booking ->
-                BookingCard(
-                    booking = booking,
-                    pastGroup = selectedTab == BookingListTab.Past,
-                    onClick = { onBookingClick(booking.id) },
-                )
+            if (visibleBookings.isEmpty()) {
+                item {
+                    BookingEmptyCard(
+                        title = if (selectedTab == BookingListTab.Upcoming) {
+                            "Пока нет предстоящих записей"
+                        } else {
+                            "Здесь появятся прошедшие прогулки"
+                        },
+                        description = if (selectedTab == BookingListTab.Upcoming) {
+                            "Можно выбрать ближайшую прогулку"
+                        } else {
+                            "Отменённые записи тоже будут здесь"
+                        },
+                        onBookWalk = onBookWalk,
+                    )
+                }
+            } else {
+                items(visibleBookings, key = { it.id.value }) { booking ->
+                    BookingCard(
+                        booking = booking,
+                        pastGroup = selectedTab == BookingListTab.Past,
+                        onClick = { onBookingClick(booking.id) },
+                    )
+                }
             }
         }
     }
@@ -333,4 +342,3 @@ private fun BookingStatusBadge(status: String) {
         color = if (active) Color(0xFF007108) else MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
-
