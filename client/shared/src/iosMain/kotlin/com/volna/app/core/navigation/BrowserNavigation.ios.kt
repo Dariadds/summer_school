@@ -9,4 +9,11 @@ actual fun BindBrowserNavigation(
 ) {
 }
 
+@Composable
+actual fun BindSystemBack(
+    enabled: Boolean,
+    onBack: () -> Unit,
+) {
+}
+
 actual fun currentBrowserPath(): String? = null

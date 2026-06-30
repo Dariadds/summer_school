@@ -8,4 +8,10 @@ expect fun BindBrowserNavigation(
     onPathChange: (String) -> Unit,
 )
 
+@Composable
+expect fun BindSystemBack(
+    enabled: Boolean,
+    onBack: () -> Unit,
+)
+
 expect fun currentBrowserPath(): String?

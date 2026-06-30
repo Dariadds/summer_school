@@ -94,16 +94,21 @@ private fun SlotDetailsContent(
 ) {
     val availability = AvailabilityPolicy.availability(slot)
     Column(Modifier.fillMaxSize()) {
-        SlotDetailsHero()
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = VolnaTheme.tokens.spacing.md)
-                .offset(y = 74.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
-            CircleActionButton(icon = Icons.Share, contentDescription = "Поделиться", onClick = {})
+        Box {
+            SlotDetailsHero()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = VolnaTheme.tokens.spacing.md,
+                        end = VolnaTheme.tokens.spacing.md,
+                        top = VolnaTheme.tokens.sizing.backButtonY,
+                    ),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
+                CircleActionButton(icon = Icons.Share, contentDescription = "Поделиться", onClick = {})
+            }
         }
         SlotDetailsSheetContent(
             modifier = Modifier
@@ -403,4 +408,3 @@ private fun DetailsInfoRow(
         )
     }
 }
-

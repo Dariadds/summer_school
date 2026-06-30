@@ -27,7 +27,7 @@ data class VolnaRadius(
     val sm: Dp = 8.dp,
     val md: Dp = 14.dp,
     val lg: Dp = 16.dp,
-    val pill: Dp = 28.dp,
+    val pill: Dp = 32.dp,
 )
 
 @Immutable

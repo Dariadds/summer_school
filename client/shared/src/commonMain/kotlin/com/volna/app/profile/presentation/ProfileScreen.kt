@@ -175,7 +175,6 @@ private fun ProfileViewContent(
         appConfig = appConfig,
         onOpenExternalUrl = onOpenExternalUrl,
     )
-    Spacer(Modifier.height(236.dp))
     ProfileLogoutButton(state = state, onIntent = onIntent)
 }
 

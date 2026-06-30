@@ -29,6 +29,13 @@ actual fun BindBrowserNavigation(
     }
 }
 
+@Composable
+actual fun BindSystemBack(
+    enabled: Boolean,
+    onBack: () -> Unit,
+) {
+}
+
 actual fun currentBrowserPath(): String? =
     normalizePath(window.location.pathname.ifBlank { DEFAULT_PATH })
 

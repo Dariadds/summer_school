@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -88,56 +87,54 @@ fun SlotListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SlotFiltersSheet(
     state: SlotListState,
     onIntent: (SlotListIntent) -> Unit,
 ) {
-    // CMP-13 / BS-001: filter form only collects conditions; SCR-002 reloads after apply.
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable { onIntent(SlotListIntent.CloseFilters) },
-        contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {}
-                .shadow(
-                    elevation = 0.dp,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.spacing.xl,
-                        topEnd = VolnaTheme.tokens.spacing.xl,
-                    ),
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = { onIntent(SlotListIntent.CloseFilters) },
+        sheetState = sheetState,
+        shape = RoundedCornerShape(
+            topStart = VolnaTheme.tokens.spacing.xl,
+            topEnd = VolnaTheme.tokens.spacing.xl,
+        ),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                contentAlignment = androidx.compose.ui.Alignment.TopCenter,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(
+                            color = Color(0xFFCCCCCC).copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
+                        ),
                 )
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.spacing.xl,
-                        topEnd = VolnaTheme.tokens.spacing.xl,
-                    ),
-                ),
+            }
+        },
+    ) {
+        // CMP-13 / BS-001: filter form only collects conditions; SCR-002 reloads after apply.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp),
+                    .height(52.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
-                        .align(androidx.compose.ui.Alignment.TopCenter)
-                        .offset(y = 8.dp)
-                        .background(
-                            color = Color(0xFFCCCCCC).copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
-                        )
-                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -285,15 +282,14 @@ private fun DateRangeField(
     Text(
         text = text,
         modifier = modifier
-            .height(40.dp)
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.sm),
+                shape = RoundedCornerShape(12.dp),
             )
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.primary,
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.sm),
+                shape = RoundedCornerShape(12.dp),
             )
             .padding(horizontal = VolnaTheme.tokens.spacing.sm, vertical = 10.dp),
         textAlign = TextAlign.Center,
@@ -321,27 +317,9 @@ private fun AvailabilitySwitchRow(
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        AvailabilitySwitch(checked = checked)
-    }
-}
-
-@Composable
-private fun AvailabilitySwitch(checked: Boolean) {
-    Box(
-        modifier = Modifier
-            .width(44.dp)
-            .height(24.dp)
-            .background(
-                color = if (checked) MaterialTheme.colorScheme.primary else Color(0xFFCCCCCC),
-                shape = RoundedCornerShape(100.dp),
-            ),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .offset(x = if (checked) 22.dp else 2.dp, y = 2.dp)
-                .background(Color.White, RoundedCornerShape(100.dp))
-                .shadow(2.dp, RoundedCornerShape(100.dp)),
+        Switch(
+            checked = checked,
+            onCheckedChange = { onToggle() },
         )
     }
 }
@@ -541,4 +519,3 @@ private fun SlotPreviewPhoto() {
         )
     }
 }
-
