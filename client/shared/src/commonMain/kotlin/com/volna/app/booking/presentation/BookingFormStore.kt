@@ -1,5 +1,7 @@
 package com.volna.app.booking.presentation
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.volna.app.booking.BookingRepository
 import com.volna.app.booking.IdempotencyKey
 import com.volna.app.booking.IdempotencyKeyFactory
@@ -81,10 +83,11 @@ sealed interface BookingFormEffect {
 class BookingFormStore(
     private val bookingRepository: BookingRepository,
     private val keyFactory: IdempotencyKeyFactory,
-    private val scope: CoroutineScope,
-) : MviStore<BookingFormState, BookingFormIntent, BookingFormEffect> {
+    scope: CoroutineScope? = null,
+) : ViewModel(), MviStore<BookingFormState, BookingFormIntent, BookingFormEffect> {
     private val mutableState = MutableStateFlow(BookingFormState())
     private val effects = Channel<BookingFormEffect>(Channel.BUFFERED)
+    private val storeScope = scope ?: viewModelScope
 
     override val state: StateFlow<BookingFormState> = mutableState
 
@@ -159,7 +162,7 @@ class BookingFormStore(
             keyFactory.next()
         }
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(
                     actionStatus = ActionStatus.Submitting,

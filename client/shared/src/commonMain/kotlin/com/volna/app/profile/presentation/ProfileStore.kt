@@ -1,5 +1,7 @@
 package com.volna.app.profile.presentation
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.volna.app.auth.AuthRepository
 import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
@@ -82,10 +84,11 @@ sealed interface ProfileEffect {
 class ProfileStore(
     private val profileRepository: ProfileRepository,
     private val authRepository: AuthRepository,
-    private val scope: CoroutineScope,
-) : MviStore<ProfileState, ProfileIntent, ProfileEffect> {
+    scope: CoroutineScope? = null,
+) : ViewModel(), MviStore<ProfileState, ProfileIntent, ProfileEffect> {
     private val mutableState = MutableStateFlow(ProfileState())
     private val effects = Channel<ProfileEffect>(Channel.BUFFERED)
+    private val storeScope = scope ?: viewModelScope
     private var resendTimer: Job? = null
 
     override val state: StateFlow<ProfileState> = mutableState
@@ -118,7 +121,7 @@ class ProfileStore(
     private fun loadProfile() {
         if (mutableState.value.profile == Loadable.Loading) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update { it.copy(profile = Loadable.Loading, message = null) }
             profileRepository.getProfile().fold(
                 onSuccess = { client ->
@@ -233,7 +236,7 @@ class ProfileStore(
     }
 
     private fun updateName(name: String) {
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(actionStatus = ActionStatus.Submitting, fieldError = null, message = null)
             }
@@ -259,7 +262,7 @@ class ProfileStore(
     }
 
     private fun updateNameBeforePhoneChange(name: String, phone: String) {
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(actionStatus = ActionStatus.Submitting, fieldError = null, message = null)
             }
@@ -283,7 +286,7 @@ class ProfileStore(
     }
 
     private fun requestPhoneChangeCode(phone: String) {
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(actionStatus = ActionStatus.Submitting, fieldError = null, message = null)
             }
@@ -322,7 +325,7 @@ class ProfileStore(
         }
         if (!pendingPhone.isE164Phone() || current.isSubmitting) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(actionStatus = ActionStatus.Submitting, fieldError = null, message = null)
             }
@@ -377,7 +380,7 @@ class ProfileStore(
     private fun logout() {
         if (mutableState.value.isSubmitting) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(
                     actionStatus = ActionStatus.Submitting,
@@ -402,7 +405,7 @@ class ProfileStore(
     private fun deleteAccount() {
         if (mutableState.value.isSubmitting) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(
                     actionStatus = ActionStatus.Submitting,
@@ -440,7 +443,7 @@ class ProfileStore(
         message: (AppFailure) -> String?,
     ) {
         if (appFailure == AppFailure.Unauthorized) {
-            scope.launch { effects.send(ProfileEffect.SignedOut) }
+            storeScope.launch { effects.send(ProfileEffect.SignedOut) }
         } else {
             mutableState.update {
                 it.copy(
@@ -455,7 +458,7 @@ class ProfileStore(
     private fun startResendTimer(seconds: Int) {
         resendTimer?.cancel()
         mutableState.update { it.copy(resendSecondsRemaining = seconds.coerceAtLeast(0)) }
-        resendTimer = scope.launch {
+        resendTimer = storeScope.launch {
             while (mutableState.value.resendSecondsRemaining > 0) {
                 delay(1_000)
                 mutableState.update { state ->

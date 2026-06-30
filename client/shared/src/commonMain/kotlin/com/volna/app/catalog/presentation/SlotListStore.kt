@@ -1,5 +1,7 @@
 package com.volna.app.catalog.presentation
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.volna.app.catalog.PageRequest
 import com.volna.app.catalog.InstructorRepository
 import com.volna.app.catalog.SlotFilters
@@ -68,10 +70,11 @@ sealed interface SlotListEffect {
 class SlotListStore(
     private val slotRepository: SlotRepository,
     private val instructorRepository: InstructorRepository,
-    private val scope: CoroutineScope,
-) : MviStore<SlotListState, SlotListIntent, SlotListEffect> {
+    scope: CoroutineScope? = null,
+) : ViewModel(), MviStore<SlotListState, SlotListIntent, SlotListEffect> {
     private val mutableState = MutableStateFlow(SlotListState())
     private val effects = Channel<SlotListEffect>(Channel.BUFFERED)
+    private val storeScope = scope ?: viewModelScope
 
     override val state: StateFlow<SlotListState> = mutableState
 
@@ -101,7 +104,7 @@ class SlotListStore(
     private fun load() {
         if (mutableState.value.slots == Loadable.Loading) return
 
-        scope.launch {
+        storeScope.launch {
             val filters = mutableState.value.filters
             mutableState.update { it.copy(slots = Loadable.Loading) }
             slotRepository.listSlots(filters, PageRequest()).fold(
@@ -219,7 +222,7 @@ class SlotListStore(
         val current = mutableState.value.instructors
         if (!force && (current == Loadable.Loading || current is Loadable.Content || current is Loadable.Empty)) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update { it.copy(instructors = Loadable.Loading) }
             instructorRepository.listInstructors().fold(
                 onSuccess = { page ->

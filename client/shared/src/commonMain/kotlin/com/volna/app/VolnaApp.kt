@@ -12,33 +12,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import com.volna.app.auth.data.DefaultSessionRepository
-import com.volna.app.auth.data.KtorAuthRepository
+import com.volna.app.auth.SessionRepository
 import com.volna.app.auth.presentation.AuthEffect
 import com.volna.app.auth.presentation.AuthIntent
 import com.volna.app.auth.presentation.AuthScreen
 import com.volna.app.auth.presentation.AuthStore
-import com.volna.app.booking.data.KtorBookingRepository
-import com.volna.app.booking.data.RandomIdempotencyKeyFactory
 import com.volna.app.booking.presentation.*
-import com.volna.app.catalog.data.KtorInstructorRepository
-import com.volna.app.catalog.data.KtorSlotRepository
 import com.volna.app.catalog.presentation.*
 import com.volna.app.core.config.AppConfig
 import com.volna.app.core.navigation.BindBrowserNavigation
 import com.volna.app.core.navigation.currentBrowserPath
-import com.volna.app.core.network.VolnaApiClient
-import com.volna.app.core.storage.PlatformSessionStorage
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.time.AppClock
-import com.volna.app.core.time.SystemAppClock
 import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
-import com.volna.app.profile.data.KtorProfileRepository
 import com.volna.app.profile.presentation.*
 import com.volna.app.uikit.icons.*
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 private enum class MainTab(val title: String) {
     Slots("Прогулки"),
@@ -64,28 +57,20 @@ private sealed interface BookingsRoute {
 }
 
 @Composable
-fun VolnaApp(appConfig: AppConfig = AppConfig()) {
+fun VolnaApp() {
     VolnaTheme {
         val initialBrowserPath = remember { currentBrowserPath() ?: ROUTE_AUTH }
         val appScope = rememberCoroutineScope()
-        val clock = remember { SystemAppClock }
-        val sessionRepository = remember { DefaultSessionRepository(PlatformSessionStorage) }
-        val apiClient = remember { VolnaApiClient(sessionRepository) }
-        val authRepository = remember { KtorAuthRepository(apiClient, sessionRepository) }
-        val profileRepository = remember { KtorProfileRepository(apiClient, sessionRepository) }
-        val slotRepository = remember { KtorSlotRepository(apiClient) }
-        val instructorRepository = remember { KtorInstructorRepository(apiClient) }
-        val bookingRepository = remember { KtorBookingRepository(apiClient) }
-        val idempotencyKeyFactory = remember { RandomIdempotencyKeyFactory() }
-        val authStore = remember { AuthStore(authRepository, profileRepository, appScope) }
-        val profileStore = remember { ProfileStore(profileRepository, authRepository, appScope) }
-        val slotListStore = remember { SlotListStore(slotRepository, instructorRepository, appScope) }
-        val slotDetailsStore = remember { SlotDetailsStore(slotRepository, appScope) }
-        val bookingFormStore = remember {
-            BookingFormStore(bookingRepository, idempotencyKeyFactory, appScope)
-        }
-        val bookingListStore = remember { BookingListStore(bookingRepository, clock, appScope) }
-        val bookingDetailsStore = remember { BookingDetailsStore(bookingRepository, clock, appScope) }
+        val appConfig = koinInject<AppConfig>()
+        val clock = koinInject<AppClock>()
+        val sessionRepository = koinInject<SessionRepository>()
+        val authStore = koinViewModel<AuthStore>()
+        val profileStore = koinViewModel<ProfileStore>()
+        val slotListStore = koinViewModel<SlotListStore>()
+        val slotDetailsStore = koinViewModel<SlotDetailsStore>()
+        val bookingFormStore = koinViewModel<BookingFormStore>()
+        val bookingListStore = koinViewModel<BookingListStore>()
+        val bookingDetailsStore = koinViewModel<BookingDetailsStore>()
         val authState by authStore.state.collectAsState()
         val profileState by profileStore.state.collectAsState()
         val slotListState by slotListStore.state.collectAsState()

@@ -1,5 +1,7 @@
 package com.volna.app.auth.presentation
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.volna.app.auth.AuthRepository
 import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
@@ -71,10 +73,11 @@ sealed interface AuthEffect {
 class AuthStore(
     private val authRepository: AuthRepository,
     private val profileRepository: ProfileRepository,
-    private val scope: CoroutineScope,
-) : MviStore<AuthState, AuthIntent, AuthEffect> {
+    scope: CoroutineScope? = null,
+) : ViewModel(), MviStore<AuthState, AuthIntent, AuthEffect> {
     private val mutableState = MutableStateFlow(AuthState())
     private val effects = Channel<AuthEffect>(Channel.BUFFERED)
+    private val storeScope = scope ?: viewModelScope
     private var resendTimer: Job? = null
 
     override val state: StateFlow<AuthState> = mutableState
@@ -136,7 +139,7 @@ class AuthStore(
         }
         if (mutableState.value.isSubmitting) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update { it.copy(actionStatus = ActionStatus.Submitting, message = null) }
             val result = authRepository.requestCode(Phone(phoneValue))
             result.fold(
@@ -178,7 +181,7 @@ class AuthStore(
         }
         if (current.isSubmitting) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update { it.copy(actionStatus = ActionStatus.Submitting, message = null) }
             val result = authRepository.verifyCode(Phone(normalizePhoneE164(current.phoneInput)), current.codeInput)
             result.fold(
@@ -245,7 +248,7 @@ class AuthStore(
         }
         if (mutableState.value.isSubmitting) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update { it.copy(actionStatus = ActionStatus.Submitting, fieldError = null, message = null) }
             val result = profileRepository.updateName(name)
             result.fold(
@@ -297,7 +300,7 @@ class AuthStore(
     private fun startResendTimer(seconds: Int) {
         resendTimer?.cancel()
         mutableState.update { it.copy(resendSecondsRemaining = seconds.coerceAtLeast(0)) }
-        resendTimer = scope.launch {
+        resendTimer = storeScope.launch {
             while (mutableState.value.resendSecondsRemaining > 0) {
                 delay(1_000)
                 mutableState.update { state ->

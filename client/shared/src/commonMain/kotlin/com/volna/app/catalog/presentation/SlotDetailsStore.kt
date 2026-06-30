@@ -1,5 +1,7 @@
 package com.volna.app.catalog.presentation
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.volna.app.catalog.SlotRepository
 import com.volna.app.core.error.AppFailure
 import com.volna.app.core.error.asAppFailure
@@ -34,10 +36,11 @@ sealed interface SlotDetailsEffect {
 
 class SlotDetailsStore(
     private val slotRepository: SlotRepository,
-    private val scope: CoroutineScope,
-) : MviStore<SlotDetailsState, SlotDetailsIntent, SlotDetailsEffect> {
+    scope: CoroutineScope? = null,
+) : ViewModel(), MviStore<SlotDetailsState, SlotDetailsIntent, SlotDetailsEffect> {
     private val mutableState = MutableStateFlow(SlotDetailsState())
     private val effects = Channel<SlotDetailsEffect>(Channel.BUFFERED)
+    private val storeScope = scope ?: viewModelScope
     private var lastSlotId: SlotId? = null
 
     override val state: StateFlow<SlotDetailsState> = mutableState
@@ -61,7 +64,7 @@ class SlotDetailsStore(
         if (mutableState.value.slot == Loadable.Loading && lastSlotId == slotId) return
         lastSlotId = slotId
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update { it.copy(slot = Loadable.Loading, showRouteMap = false) }
             slotRepository.getSlot(slotId).fold(
                 onSuccess = { slot -> mutableState.update { it.copy(slot = Loadable.Content(slot)) } },

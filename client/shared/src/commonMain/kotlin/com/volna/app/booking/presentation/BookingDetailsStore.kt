@@ -1,5 +1,7 @@
 package com.volna.app.booking.presentation
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.volna.app.booking.BookingRepository
 import com.volna.app.core.error.ApiErrorCode
 import com.volna.app.core.error.AppFailure
@@ -54,10 +56,11 @@ sealed interface BookingDetailsEffect {
 class BookingDetailsStore(
     private val bookingRepository: BookingRepository,
     private val clock: AppClock,
-    private val scope: CoroutineScope,
-) : MviStore<BookingDetailsState, BookingDetailsIntent, BookingDetailsEffect> {
+    scope: CoroutineScope? = null,
+) : ViewModel(), MviStore<BookingDetailsState, BookingDetailsIntent, BookingDetailsEffect> {
     private val mutableState = MutableStateFlow(BookingDetailsState())
     private val effects = Channel<BookingDetailsEffect>(Channel.BUFFERED)
+    private val storeScope = scope ?: viewModelScope
     private var lastBookingId: BookingId? = null
 
     override val state: StateFlow<BookingDetailsState> = mutableState
@@ -87,7 +90,7 @@ class BookingDetailsStore(
         if (mutableState.value.booking == Loadable.Loading && lastBookingId == bookingId) return
         lastBookingId = bookingId
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(
                     booking = Loadable.Loading,
@@ -112,7 +115,7 @@ class BookingDetailsStore(
         val booking = mutableState.value.currentBooking ?: return
         if (mutableState.value.isCancelling || !mutableState.value.canCancel(clock)) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(
                     cancelStatus = ActionStatus.Submitting,

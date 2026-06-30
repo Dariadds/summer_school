@@ -1,5 +1,7 @@
 package com.volna.app.booking.presentation
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.volna.app.booking.BookingRepository
 import com.volna.app.catalog.PageRequest
 import com.volna.app.core.error.AppFailure
@@ -44,10 +46,11 @@ sealed interface BookingListEffect {
 class BookingListStore(
     private val bookingRepository: BookingRepository,
     private val clock: AppClock,
-    private val scope: CoroutineScope,
-) : MviStore<BookingListState, BookingListIntent, BookingListEffect> {
+    scope: CoroutineScope? = null,
+) : ViewModel(), MviStore<BookingListState, BookingListIntent, BookingListEffect> {
     private val mutableState = MutableStateFlow(BookingListState())
     private val effects = Channel<BookingListEffect>(Channel.BUFFERED)
+    private val storeScope = scope ?: viewModelScope
 
     override val state: StateFlow<BookingListState> = mutableState
 
@@ -67,7 +70,7 @@ class BookingListStore(
         val current = mutableState.value.bookings
         if (!force && (current == Loadable.Loading || current is Loadable.Content)) return
 
-        scope.launch {
+        storeScope.launch {
             mutableState.update {
                 it.copy(
                     bookings = if (force && current is Loadable.Content) {
