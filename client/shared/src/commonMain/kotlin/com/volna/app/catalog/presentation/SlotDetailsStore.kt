@@ -17,11 +17,14 @@ import kotlinx.coroutines.launch
 
 data class SlotDetailsState(
     val slot: Loadable<Slot> = Loadable.Initial,
+    val showRouteMap: Boolean = false,
 )
 
 sealed interface SlotDetailsIntent {
     data class Load(val slotId: SlotId) : SlotDetailsIntent
     data object Retry : SlotDetailsIntent
+    data object OpenRouteMap : SlotDetailsIntent
+    data object DismissRouteMap : SlotDetailsIntent
     data object Reset : SlotDetailsIntent
 }
 
@@ -43,6 +46,8 @@ class SlotDetailsStore(
         when (intent) {
             is SlotDetailsIntent.Load -> load(intent.slotId)
             SlotDetailsIntent.Retry -> lastSlotId?.let(::load)
+            SlotDetailsIntent.OpenRouteMap -> mutableState.update { it.copy(showRouteMap = true) }
+            SlotDetailsIntent.DismissRouteMap -> mutableState.update { it.copy(showRouteMap = false) }
             SlotDetailsIntent.Reset -> {
                 lastSlotId = null
                 mutableState.value = SlotDetailsState()
@@ -57,7 +62,7 @@ class SlotDetailsStore(
         lastSlotId = slotId
 
         scope.launch {
-            mutableState.update { it.copy(slot = Loadable.Loading) }
+            mutableState.update { it.copy(slot = Loadable.Loading, showRouteMap = false) }
             slotRepository.getSlot(slotId).fold(
                 onSuccess = { slot -> mutableState.update { it.copy(slot = Loadable.Content(slot)) } },
                 onFailure = { failure ->

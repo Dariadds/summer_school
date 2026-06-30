@@ -1,69 +1,34 @@
 package com.volna.app.booking.presentation
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.time.AppClock
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.BookingId
-import com.volna.app.domain.model.BookingStatus
-import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.map.RouteMapSheet
-import com.volna.app.uikit.icons.Back
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Info
 import com.volna.app.uikit.icons.VolnaIcon
-import kotlinx.coroutines.delay
-import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Instant
-import kotlinx.datetime.Month
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Duration.Companion.hours
 
 // CMP-12 / SCR-006 / BS-003: booking details with explicit cancel confirmation.
 @Composable
@@ -77,48 +42,59 @@ fun BookingDetailsScreen(
     LaunchedEffect(bookingId) {
         onIntent(BookingDetailsIntent.Load(bookingId))
     }
-    Box(Modifier.fillMaxSize()) {
-        BookingBackButton(onBack)
-        BookingScreenTitle("Детали записи")
-        when (val booking = state.booking) {
-            Loadable.Initial,
-            Loadable.Loading -> {
-                BookingSkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
-                BookingSkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
-            }
-            is Loadable.Content -> BookingDetailsContent(
-                booking = booking.value,
-                state = state,
-                clock = clock,
-                onIntent = onIntent,
-            )
-            is Loadable.Empty -> BookingStateMessage(
-                title = "Запись недоступна",
-                description = "Вернитесь к списку и попробуйте снова",
-                buttonText = "Назад",
-                onClick = onBack,
-            )
-            is Loadable.Error -> BookingStateMessage(
-                title = "Не удалось загрузить запись",
-                description = "Проверьте соединение и попробуйте снова",
-                buttonText = "Обновить",
-                onClick = { onIntent(BookingDetailsIntent.Retry) },
-            )
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = VolnaTheme.tokens.spacing.md, vertical = 18.dp),
+        ) {
+            BookingBackButton(onBack)
+            BookingScreenTitle("Детали записи")
         }
-        if (state.showCancelConfirm) {
-            CancelConfirmSheet(
-                state = state,
-                clock = clock,
-                onIntent = onIntent,
-            )
-        }
-        if (state.showRouteMap) {
-            state.currentBooking?.slot?.let { slot ->
-                RouteMapSheet(
-                    route = slot.route,
-                    meetingPoint = slot.meetingPoint,
-                    onDismiss = { onIntent(BookingDetailsIntent.DismissRouteMap) },
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (val booking = state.booking) {
+                Loadable.Initial,
+                Loadable.Loading -> {
+                    BookingSkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
+                    BookingSkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
+                }
+
+                is Loadable.Content -> BookingDetailsContent(
+                    booking = booking.value,
+                    state = state,
+                    clock = clock,
+                    onIntent = onIntent,
                 )
+
+                is Loadable.Empty -> BookingStateMessage(
+                    title = "Запись недоступна",
+                    description = "Вернитесь к списку и попробуйте снова",
+                    buttonText = "Назад",
+                    onClick = onBack,
+                )
+
+                is Loadable.Error -> BookingStateMessage(
+                    title = "Не удалось загрузить запись",
+                    description = "Проверьте соединение и попробуйте снова",
+                    buttonText = "Обновить",
+                    onClick = { onIntent(BookingDetailsIntent.Retry) },
+                )
+            }
+            if (state.showCancelConfirm) {
+                CancelConfirmSheet(
+                    state = state,
+                    clock = clock,
+                    onIntent = onIntent,
+                )
+            }
+            if (state.showRouteMap) {
+                state.currentBooking?.slot?.let { slot ->
+                    RouteMapSheet(
+                        route = slot.route,
+                        meetingPoint = slot.meetingPoint,
+                        onDismiss = { onIntent(BookingDetailsIntent.DismissRouteMap) },
+                    )
+                }
             }
         }
     }
@@ -136,7 +112,7 @@ private fun BookingDetailsContent(
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY)
+            .padding(start = VolnaTheme.tokens.spacing.md)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {

@@ -2,29 +2,13 @@ package com.volna.app.auth.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -39,10 +23,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.volna.app.core.phone.formatPhoneNumber
-import com.volna.app.core.ui.PhoneNumberVisualTransformation
 import com.volna.app.core.theme.VolnaTheme
+import com.volna.app.core.ui.PhoneNumberVisualTransformation
 import com.volna.app.uikit.icons.Back
 import com.volna.app.uikit.icons.Icons
+import com.volna.app.uikit.icons.Logo
 import com.volna.app.uikit.icons.VolnaIcon
 
 @Composable
@@ -67,23 +52,17 @@ fun AuthScreen(
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .widthIn(max = VolnaTheme.tokens.sizing.screenMaxWidth),
-        ) {
-            when (state.step) {
-                AuthStep.Phone -> PhoneStep(state, onIntent)
-                AuthStep.Otp -> OtpStep(state, onIntent)
-                AuthStep.Name -> NameStep(state, onIntent)
-            }
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(VolnaTheme.tokens.spacing.md),
-            )
+        when (state.step) {
+            AuthStep.Phone -> PhoneStep(state, onIntent)
+            AuthStep.Otp -> OtpStep(state, onIntent)
+            AuthStep.Name -> NameStep(state, onIntent)
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(VolnaTheme.tokens.spacing.md),
+        )
     }
 }
 
@@ -92,41 +71,42 @@ private fun PhoneStep(
     state: AuthState,
     onIntent: (AuthIntent) -> Unit,
 ) {
-    AuthLogo()
-    AuthHeader(
-        title = "Вход",
-        description = "Войдите по номеру телефона, чтобы\nзаписаться на прогулку",
-    )
-    AuthTextField(
-        value = state.phoneInput,
-        onValueChange = { onIntent(AuthIntent.PhoneChanged(it)) },
-        label = "Телефон",
-        placeholder = "+7 (___) ___-__-__",
-        keyboardType = KeyboardType.Phone,
-        visualTransformation = PhoneNumberVisualTransformation(),
-        fieldError = state.fieldError,
-        modifier = Modifier.offset(
-            x = VolnaTheme.tokens.spacing.md,
-            y = VolnaTheme.tokens.sizing.authInputY,
-        ),
-    )
-    TermsText(
-        text = if (state.resendSecondsRemaining > 0) {
-            "Повторный код можно запросить через ${state.resendSecondsRemaining} с"
-        } else {
-            "Нажимая «Получить код», вы соглашаетесь\nс условиями сервиса"
-        },
-    )
-    SubmitButton(
-        text = "Получить код",
-        loading = state.isSubmitting,
-        enabled = state.canRequestCode,
-        onClick = { onIntent(AuthIntent.RequestCode) },
-        modifier = Modifier.offset(
-            x = VolnaTheme.tokens.spacing.md,
-            y = VolnaTheme.tokens.sizing.authButtonY,
-        ),
-    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                horizontal = VolnaTheme.tokens.spacing.md,
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AuthLogo()
+        AuthHeader(
+            title = "Вход",
+            description = "Войдите по номеру телефона, чтобы\nзаписаться на прогулку",
+        )
+        AuthTextField(
+            value = state.phoneInput,
+            onValueChange = { onIntent(AuthIntent.PhoneChanged(it)) },
+            label = "Телефон",
+            placeholder = "+7 (___) ___-__-__",
+            keyboardType = KeyboardType.Phone,
+            visualTransformation = PhoneNumberVisualTransformation(),
+            fieldError = state.fieldError,
+        )
+        TermsText(
+            text = if (state.resendSecondsRemaining > 0) {
+                "Повторный код можно запросить через ${state.resendSecondsRemaining} с"
+            } else {
+                "Нажимая «Получить код», вы соглашаетесь\nс условиями сервиса"
+            },
+        )
+        SubmitButton(
+            text = "Получить код",
+            loading = state.isSubmitting,
+            enabled = state.canRequestCode,
+            onClick = { onIntent(AuthIntent.RequestCode) },
+        )
+    }
 }
 
 @Composable
@@ -134,49 +114,38 @@ private fun OtpStep(
     state: AuthState,
     onIntent: (AuthIntent) -> Unit,
 ) {
-    BackButton(onClick = { onIntent(AuthIntent.BackToPhone) })
-    AuthHeader(
-        title = "Подтверждение",
-        description = "Мы отправили код на ${formatPhoneNumber(state.phoneInput)}",
-    )
-    OtpCodeInput(
-        value = state.codeInput,
-        onValueChange = { onIntent(AuthIntent.CodeChanged(it)) },
-        fieldError = state.fieldError,
-        modifier = Modifier.offset(
-            x = VolnaTheme.tokens.spacing.md,
-            y = VolnaTheme.tokens.sizing.authInputY,
-        ),
-    )
-    TextButton(
-        enabled = state.canResendCode,
-        onClick = { onIntent(AuthIntent.ResendCode) },
-        modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(
-                x = VolnaTheme.tokens.spacing.md,
-                y = VolnaTheme.tokens.sizing.authTermsY,
-            ),
-    ) {
-        Text(
-            text = if (state.resendSecondsRemaining > 0) {
-                "Отправить код повторно (00:${state.resendSecondsRemaining.toString().padStart(2, '0')})"
-            } else {
-                "Отправить код повторно"
-            },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    AuthStepLayout {
+        BackButton(onClick = { onIntent(AuthIntent.BackToPhone) })
+        AuthHeader(
+            title = "Подтверждение",
+            description = "Мы отправили код на ${formatPhoneNumber(state.phoneInput)}",
+        )
+        OtpCodeInput(
+            value = state.codeInput,
+            onValueChange = { onIntent(AuthIntent.CodeChanged(it)) },
+            fieldError = state.fieldError,
+        )
+        TextButton(
+            enabled = state.canResendCode,
+            onClick = { onIntent(AuthIntent.ResendCode) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = if (state.resendSecondsRemaining > 0) {
+                    "Отправить код повторно (00:${state.resendSecondsRemaining.toString().padStart(2, '0')})"
+                } else {
+                    "Отправить код повторно"
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        SubmitButton(
+            text = "Подтвердить",
+            loading = state.isSubmitting,
+            enabled = state.canVerifyCode,
+            onClick = { onIntent(AuthIntent.VerifyCode) },
         )
     }
-    SubmitButton(
-        text = "Подтвердить",
-        loading = state.isSubmitting,
-        enabled = state.canVerifyCode,
-        onClick = { onIntent(AuthIntent.VerifyCode) },
-        modifier = Modifier.offset(
-            x = VolnaTheme.tokens.spacing.md,
-            y = VolnaTheme.tokens.sizing.authButtonY,
-        ),
-    )
 }
 
 @Composable
@@ -184,46 +153,72 @@ private fun NameStep(
     state: AuthState,
     onIntent: (AuthIntent) -> Unit,
 ) {
-    AuthHeader(
-        title = "Как вас зовут?",
-        description = "Имя будет отображаться в вашем\nпрофиле",
-    )
-    AuthTextField(
-        value = state.nameInput,
-        onValueChange = { onIntent(AuthIntent.NameChanged(it)) },
-        label = "Имя",
-        placeholder = "Введите имя",
-        keyboardType = KeyboardType.Text,
-        fieldError = state.fieldError,
-        modifier = Modifier.offset(
-            x = VolnaTheme.tokens.spacing.md,
-            y = VolnaTheme.tokens.sizing.authInputY,
-        ),
-    )
-    TermsText("Продолжая, вы соглашаетесь на обработку\nперсональных данных")
-    SubmitButton(
-        text = "Продолжить",
-        loading = state.isSubmitting,
-        enabled = state.canContinueName,
-        onClick = { onIntent(AuthIntent.ContinueWithName) },
-        modifier = Modifier.offset(
-            x = VolnaTheme.tokens.spacing.md,
-            y = VolnaTheme.tokens.sizing.authButtonY,
-        ),
-    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+//            .verticalScroll(rememberScrollState())
+            .padding(
+                horizontal = VolnaTheme.tokens.spacing.md,
+                vertical = VolnaTheme.tokens.spacing.xl,
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AuthHeader(
+            title = "Как вас зовут?",
+            description = "Имя будет отображаться в вашем\nпрофиле",
+        )
+        AuthTextField(
+            value = state.nameInput,
+            onValueChange = { onIntent(AuthIntent.NameChanged(it)) },
+            label = "Имя",
+            placeholder = "Введите имя",
+            keyboardType = KeyboardType.Text,
+            visualTransformation = VisualTransformation.None,
+            fieldError = state.fieldError,
+        )
+        TermsText("Продолжая, вы соглашаетесь на обработку\nперсональных данных")
+        SubmitButton(
+            text = "Продолжить",
+            loading = state.isSubmitting,
+            enabled = state.canContinueName,
+            onClick = { onIntent(AuthIntent.ContinueWithName) },
+        )
+    }
+}
+
+@Composable
+private fun AuthStepLayout(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                horizontal = VolnaTheme.tokens.spacing.md,
+                vertical = VolnaTheme.tokens.spacing.xl,
+            ),
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .widthIn(max = VolnaTheme.tokens.sizing.contentWidth)
+                .wrapContentHeight()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
+            content = content,
+        )
+    }
 }
 
 @Composable
 private fun AuthLogo() {
-    Text(
-        text = "волна",
-        modifier = Modifier
-            .fillMaxWidth()
-            .offset(y = VolnaTheme.tokens.sizing.authLogoY),
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.headlineLarge,
-        fontWeight = FontWeight.Black,
-        letterSpacing = 0.sp,
+    VolnaIcon(
+        imageVector = Icons.Logo,
+        contentDescription = "Волна",
+        modifier = Modifier.fillMaxWidth(),
+        tint = MaterialTheme.colorScheme.onBackground,
     )
 }
 
@@ -233,12 +228,7 @@ private fun AuthHeader(
     description: String,
 ) {
     Column(
-        modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(
-                x = VolnaTheme.tokens.spacing.md,
-                y = VolnaTheme.tokens.sizing.authTitleY,
-            ),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
     ) {
@@ -246,12 +236,14 @@ private fun AuthHeader(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
+            modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
         )
         Text(
             text = description,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
         )
     }
@@ -269,7 +261,7 @@ private fun AuthTextField(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.width(VolnaTheme.tokens.sizing.contentWidth),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium)
@@ -329,7 +321,7 @@ private fun OtpCodeInput(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.width(VolnaTheme.tokens.sizing.contentWidth),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs),
     ) {
         Text("Код из SMS", style = MaterialTheme.typography.bodyMedium)
@@ -348,6 +340,7 @@ private fun OtpCodeInput(
                     ) {
                         repeat(4) { index ->
                             CodeBox(
+                                modifier = Modifier.weight(1f),
                                 digit = value.getOrNull(index)?.toString().orEmpty(),
                                 isError = fieldError != null,
                             )
@@ -371,12 +364,12 @@ private fun OtpCodeInput(
 
 @Composable
 private fun CodeBox(
+    modifier: Modifier = Modifier,
     digit: String,
     isError: Boolean,
 ) {
     Box(
-        modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.codeInputWidth)
+        modifier = modifier
             .height(VolnaTheme.tokens.sizing.fieldHeight)
             .border(
                 width = VolnaTheme.tokens.spacing.xxs / 2,
@@ -397,12 +390,7 @@ private fun CodeBox(
 private fun TermsText(text: String) {
     Text(
         text = text,
-        modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(
-                x = VolnaTheme.tokens.spacing.md,
-                y = VolnaTheme.tokens.sizing.authTermsY,
-            ),
+        modifier = Modifier.fillMaxWidth(),
         textAlign = TextAlign.Center,
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -413,9 +401,7 @@ private fun TermsText(text: String) {
 private fun BackButton(onClick: () -> Unit) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.backButtonY)
-            .size(VolnaTheme.tokens.spacing.xl + VolnaTheme.tokens.spacing.xs),
+        modifier = Modifier.size(VolnaTheme.tokens.spacing.xl + VolnaTheme.tokens.spacing.xs),
     ) {
         VolnaIcon(
             imageVector = Icons.Back,
@@ -445,7 +431,7 @@ private fun SubmitButton(
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
         modifier = modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
+            .fillMaxWidth()
             .height(VolnaTheme.tokens.sizing.buttonHeight),
     ) {
         if (loading) {

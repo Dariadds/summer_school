@@ -1,44 +1,19 @@
 package com.volna.app.catalog.presentation
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,18 +23,9 @@ import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
-import com.volna.app.domain.model.SlotId
-import com.volna.app.domain.policy.AvailabilityPolicy
-import com.volna.app.map.RouteMapSheet
-import com.volna.app.uikit.icons.Back
 import com.volna.app.uikit.icons.Icons
-import com.volna.app.uikit.icons.Share
 import com.volna.app.uikit.icons.Tune
 import com.volna.app.uikit.icons.VolnaIcon
-import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Month
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 @Composable
 fun SlotListScreen(
@@ -70,41 +36,49 @@ fun SlotListScreen(
     LaunchedEffect(Unit) {
         onIntent(SlotListIntent.Load)
     }
-    ScreenTitle("Прогулки")
-    VolnaIcon(
-        imageVector = Icons.Tune,
-        contentDescription = "Фильтры",
-        modifier = Modifier
-            .offset(x = VolnaTheme.tokens.sizing.filterIconX, y = VolnaTheme.tokens.sizing.topTitleY)
-            .clickable { onIntent(SlotListIntent.OpenFilters) },
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        size = VolnaTheme.tokens.spacing.xl,
-    )
-    when (val slots = state.slots) {
-        Loadable.Initial -> SlotInitialLoader()
-        Loadable.Loading -> SlotLoadingSkeleton()
-        is Loadable.Content -> SlotCards(slots.value, onSlotClick)
-        is Loadable.Empty -> if (slots.reason == com.volna.app.core.ui.EmptyReason.NoSlotsByFilters) {
-            StateMessage(
-                title = "Нет слотов по условиям",
-                description = "Попробуйте изменить фильтры",
-                buttonText = "Фильтры",
-                artwork = StateArtwork.Empty,
-                onClick = { onIntent(SlotListIntent.OpenFilters) },
-            )
-        } else {
-            StateMessage(
-                title = "Пока нет доступных прогулок",
-                description = "Загляните позже",
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            ScreenTitle("Прогулки")
+            VolnaIcon(
+                imageVector = Icons.Tune,
+                contentDescription = "Фильтры",
+                modifier = Modifier
+                    .align(androidx.compose.ui.Alignment.CenterEnd)
+                    .padding(end = VolnaTheme.tokens.sizing.screenMaxWidth - VolnaTheme.tokens.sizing.filterIconX - VolnaTheme.tokens.spacing.xl)
+                    .clickable { onIntent(SlotListIntent.OpenFilters) },
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                size = VolnaTheme.tokens.spacing.xl,
             )
         }
-        is Loadable.Error -> StateMessage(
-            title = "Не удалось загрузить",
-            description = "Проверьте соединение и попробуйте снова",
-            buttonText = "Обновить",
-            artwork = StateArtwork.Error,
-            onClick = { onIntent(SlotListIntent.Retry) },
-        )
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            when (val slots = state.slots) {
+                Loadable.Initial -> SlotInitialLoader()
+                Loadable.Loading -> SlotLoadingSkeleton()
+                is Loadable.Content -> SlotCards(slots.value, onSlotClick)
+                is Loadable.Empty -> if (slots.reason == com.volna.app.core.ui.EmptyReason.NoSlotsByFilters) {
+                    StateMessage(
+                        title = "Нет слотов по условиям",
+                        description = "Попробуйте изменить фильтры",
+                        buttonText = "Фильтры",
+                        artwork = StateArtwork.Empty,
+                        onClick = { onIntent(SlotListIntent.OpenFilters) },
+                    )
+                } else {
+                    StateMessage(
+                        title = "Пока нет доступных прогулок",
+                        description = "Загляните позже",
+                    )
+                }
+
+                is Loadable.Error -> StateMessage(
+                    title = "Не удалось загрузить",
+                    description = "Проверьте соединение и попробуйте снова",
+                    buttonText = "Обновить",
+                    artwork = StateArtwork.Error,
+                    onClick = { onIntent(SlotListIntent.Retry) },
+                )
+            }
+        }
     }
     if (state.filtersVisible) {
         SlotFiltersSheet(
@@ -437,17 +411,18 @@ private fun SlotCards(
     slots: List<Slot>,
     onSlotClick: (Slot) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY)
-            .verticalScroll(rememberScrollState()),
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(
+            start = VolnaTheme.tokens.spacing.md,
+            end = VolnaTheme.tokens.spacing.md,
+            bottom = VolnaTheme.tokens.sizing.navContentBottomPadding,
+        ),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
     ) {
-        slots.forEach { slot ->
+        items(slots, key = { it.id.value }) { slot ->
             SlotCard(slot, onSlotClick)
         }
-        Spacer(Modifier.height(VolnaTheme.tokens.sizing.navHeight + VolnaTheme.tokens.spacing.xl))
     }
 }
 

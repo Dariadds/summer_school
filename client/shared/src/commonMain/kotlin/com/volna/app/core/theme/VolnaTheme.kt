@@ -56,6 +56,7 @@ data class VolnaSizing(
     val navWidth: Dp = 300.dp,
     val navHeight: Dp = 56.dp,
     val navBottomPadding: Dp = 42.dp,
+    val navContentBottomPadding: Dp = navHeight + navBottomPadding + 8.dp,
 )
 
 data class VolnaTokens(

@@ -1,38 +1,13 @@
 package com.volna.app.profile.presentation
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -80,26 +55,25 @@ fun ProfileScreen(
         }
     }
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.TopCenter,
     ) {
+        Text(
+            text = "Профиль",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(26.dp),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = VolnaTheme.tokens.sizing.screenMaxWidth),
         ) {
-            Text(
-                text = "Профиль",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = VolnaTheme.tokens.sizing.topTitleY),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
             when (val profile = state.profile) {
                 Loadable.Initial,
                 Loadable.Loading -> CircularProgressIndicator(
@@ -152,10 +126,7 @@ private fun ProfileContent(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
             .verticalScroll(rememberScrollState())
-            .offset(
-                x = VolnaTheme.tokens.spacing.md,
-                y = VolnaTheme.tokens.sizing.profileInfoY,
-            ),
+            .padding(start = VolnaTheme.tokens.spacing.md),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
     ) {
         when (state.mode) {
@@ -475,10 +446,7 @@ private fun ProfileError(
     Column(
         modifier = Modifier
             .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(
-                x = VolnaTheme.tokens.spacing.md,
-                y = VolnaTheme.tokens.sizing.stateMessageY,
-            ),
+            .padding(start = VolnaTheme.tokens.spacing.md),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

@@ -1,124 +1,44 @@
 package com.volna.app
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.volna.app.booking.data.KtorBookingRepository
-import com.volna.app.booking.data.RandomIdempotencyKeyFactory
-import com.volna.app.booking.presentation.BookingFormEffect
-import com.volna.app.booking.presentation.BookingFormIntent
-import com.volna.app.booking.presentation.BookingFormState
-import com.volna.app.booking.presentation.BookingFormScreen
-import com.volna.app.booking.presentation.BookingFormStore
-import com.volna.app.booking.presentation.BookingDetailsEffect
-import com.volna.app.booking.presentation.BookingDetailsIntent
-import com.volna.app.booking.presentation.BookingDetailsScreen
-import com.volna.app.booking.presentation.BookingDetailsState
-import com.volna.app.booking.presentation.BookingDetailsStore
-import com.volna.app.booking.presentation.BookingListEffect
-import com.volna.app.booking.presentation.BookingListIntent
-import com.volna.app.booking.presentation.BookingListScreen
-import com.volna.app.booking.presentation.BookingListState
-import com.volna.app.booking.presentation.BookingListStore
+import androidx.compose.ui.text.font.FontWeight
 import com.volna.app.auth.data.DefaultSessionRepository
 import com.volna.app.auth.data.KtorAuthRepository
 import com.volna.app.auth.presentation.AuthEffect
 import com.volna.app.auth.presentation.AuthIntent
 import com.volna.app.auth.presentation.AuthScreen
 import com.volna.app.auth.presentation.AuthStore
+import com.volna.app.booking.data.KtorBookingRepository
+import com.volna.app.booking.data.RandomIdempotencyKeyFactory
+import com.volna.app.booking.presentation.*
 import com.volna.app.catalog.data.KtorInstructorRepository
 import com.volna.app.catalog.data.KtorSlotRepository
-import com.volna.app.catalog.presentation.SlotDetailsEffect
-import com.volna.app.catalog.presentation.SlotDetailsIntent
-import com.volna.app.catalog.presentation.SlotDetailsState
-import com.volna.app.catalog.presentation.SlotDetailsStore
-import com.volna.app.catalog.presentation.SlotListEffect
-import com.volna.app.catalog.presentation.SlotListIntent
-import com.volna.app.catalog.presentation.SlotListState
-import com.volna.app.catalog.presentation.SlotListStore
-import com.volna.app.catalog.presentation.SlotDetailsScreen
-import com.volna.app.catalog.presentation.SlotListScreen
+import com.volna.app.catalog.presentation.*
 import com.volna.app.core.config.AppConfig
-import com.volna.app.core.theme.VolnaTheme
+import com.volna.app.core.navigation.BindBrowserNavigation
+import com.volna.app.core.navigation.currentBrowserPath
 import com.volna.app.core.network.VolnaApiClient
 import com.volna.app.core.storage.PlatformSessionStorage
+import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.time.AppClock
 import com.volna.app.core.time.SystemAppClock
-import com.volna.app.core.ui.Loadable
-import com.volna.app.uikit.icons.Back
-import com.volna.app.uikit.icons.Calendar
-import com.volna.app.uikit.icons.Icons
-import com.volna.app.uikit.icons.Info
-import com.volna.app.uikit.icons.Options
-import com.volna.app.uikit.icons.Profile
-import com.volna.app.uikit.icons.Share
-import com.volna.app.uikit.icons.Tune
-import com.volna.app.uikit.icons.VolnaIcon
 import com.volna.app.domain.model.BookingId
-import com.volna.app.domain.model.Booking
-import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
-import com.volna.app.domain.model.RouteType
-import com.volna.app.domain.policy.AvailabilityPolicy
-import com.volna.app.domain.policy.BookingPriceCalculator
-import com.volna.app.map.RouteMapPreview
-import com.volna.app.map.RouteMapSheet
 import com.volna.app.profile.data.KtorProfileRepository
-import com.volna.app.profile.presentation.ProfileEffect
-import com.volna.app.profile.presentation.ProfileIntent
-import com.volna.app.profile.presentation.ProfileScreen
-import com.volna.app.profile.presentation.ProfileState
-import com.volna.app.profile.presentation.ProfileStore
+import com.volna.app.profile.presentation.*
+import com.volna.app.uikit.icons.*
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Month
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 private enum class MainTab(val title: String) {
     Slots("Прогулки"),
@@ -146,6 +66,7 @@ private sealed interface BookingsRoute {
 @Composable
 fun VolnaApp(appConfig: AppConfig = AppConfig()) {
     VolnaTheme {
+        val initialBrowserPath = remember { currentBrowserPath() ?: ROUTE_AUTH }
         val appScope = rememberCoroutineScope()
         val clock = remember { SystemAppClock }
         val sessionRepository = remember { DefaultSessionRepository(PlatformSessionStorage) }
@@ -173,6 +94,47 @@ fun VolnaApp(appConfig: AppConfig = AppConfig()) {
         val bookingListState by bookingListStore.state.collectAsState()
         val bookingDetailsState by bookingDetailsStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
+        var selectedTab by remember { mutableStateOf(MainTab.Slots) }
+        var slotsRoute by remember { mutableStateOf<SlotsRoute>(SlotsRoute.List) }
+        var bookingsRoute by remember { mutableStateOf<BookingsRoute>(BookingsRoute.List) }
+
+        fun applyBrowserPath(path: String, hasSession: Boolean) {
+            val route = parseBrowserRoute(path)
+            if (!hasSession) {
+                rootState = RootState.Auth
+                return
+            }
+
+            rootState = RootState.Main
+            when (route) {
+                BrowserRoute.Auth,
+                BrowserRoute.SlotsList,
+                BrowserRoute.Unknown,
+                    -> {
+                    selectedTab = MainTab.Slots
+                    slotsRoute = SlotsRoute.List
+                }
+
+                is BrowserRoute.SlotDetails -> {
+                    selectedTab = MainTab.Slots
+                    slotsRoute = SlotsRoute.Details(route.slotId)
+                }
+
+                BrowserRoute.BookingsList -> {
+                    selectedTab = MainTab.Bookings
+                    bookingsRoute = BookingsRoute.List
+                }
+
+                is BrowserRoute.BookingDetails -> {
+                    selectedTab = MainTab.Bookings
+                    bookingsRoute = BookingsRoute.Details(route.bookingId)
+                }
+
+                BrowserRoute.Profile -> {
+                    selectedTab = MainTab.Profile
+                }
+            }
+        }
 
         fun resetToAuth() {
             appScope.launch {
@@ -185,21 +147,43 @@ fun VolnaApp(appConfig: AppConfig = AppConfig()) {
             bookingFormStore.accept(BookingFormIntent.Reset)
             bookingListStore.accept(BookingListIntent.Reset)
             bookingDetailsStore.accept(BookingDetailsIntent.Reset)
+            selectedTab = MainTab.Slots
+            slotsRoute = SlotsRoute.List
+            bookingsRoute = BookingsRoute.List
             rootState = RootState.Auth
         }
 
-        LaunchedEffect(sessionRepository) {
-            rootState = if (sessionRepository.token().isNullOrBlank()) {
-                RootState.Auth
+        val browserPath = remember(rootState, selectedTab, slotsRoute, bookingsRoute, initialBrowserPath) {
+            if (rootState == RootState.CheckingSession) {
+                initialBrowserPath
             } else {
-                RootState.Main
+                browserPathFor(rootState, selectedTab, slotsRoute, bookingsRoute)
+            }
+        }
+
+        if (rootState != RootState.CheckingSession) {
+            BindBrowserNavigation(currentPath = browserPath) { path ->
+                applyBrowserPath(path, hasSession = rootState == RootState.Main)
+            }
+        }
+
+        LaunchedEffect(sessionRepository) {
+            if (sessionRepository.token().isNullOrBlank()) {
+                selectedTab = MainTab.Slots
+                slotsRoute = SlotsRoute.List
+                bookingsRoute = BookingsRoute.List
+                rootState = RootState.Auth
+            } else {
+                applyBrowserPath(initialBrowserPath, hasSession = true)
             }
         }
 
         LaunchedEffect(authStore) {
             while (true) {
                 when (authStore.effects()) {
-                    AuthEffect.Authenticated -> rootState = RootState.Main
+                    AuthEffect.Authenticated -> {
+                        applyBrowserPath(currentBrowserPath() ?: ROUTE_SLOTS, hasSession = true)
+                    }
                 }
             }
         }
@@ -260,6 +244,12 @@ fun VolnaApp(appConfig: AppConfig = AppConfig()) {
                 onIntent = authStore::accept,
             )
             RootState.Main -> MainTabs(
+                selectedTab = selectedTab,
+                onSelectedTabChange = { selectedTab = it },
+                slotsRoute = slotsRoute,
+                onSlotsRouteChange = { slotsRoute = it },
+                bookingsRoute = bookingsRoute,
+                onBookingsRouteChange = { bookingsRoute = it },
                 slotListState = slotListState,
                 onSlotListIntent = slotListStore::accept,
                 slotDetailsState = slotDetailsState,
@@ -302,6 +292,12 @@ private fun SessionSplash() {
 
 @Composable
 private fun MainTabs(
+    selectedTab: MainTab,
+    onSelectedTabChange: (MainTab) -> Unit,
+    slotsRoute: SlotsRoute,
+    onSlotsRouteChange: (SlotsRoute) -> Unit,
+    bookingsRoute: BookingsRoute,
+    onBookingsRouteChange: (BookingsRoute) -> Unit,
     slotListState: SlotListState,
     onSlotListIntent: (SlotListIntent) -> Unit,
     slotDetailsState: SlotDetailsState,
@@ -317,9 +313,6 @@ private fun MainTabs(
     profileState: ProfileState,
     onProfileIntent: (ProfileIntent) -> Unit,
 ) {
-    var selectedTab by remember { mutableStateOf(MainTab.Slots) }
-    var slotsRoute by remember { mutableStateOf<SlotsRoute>(SlotsRoute.List) }
-    var bookingsRoute by remember { mutableStateOf<BookingsRoute>(BookingsRoute.List) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -337,33 +330,33 @@ private fun MainTabs(
                         state = slotListState,
                         onIntent = onSlotListIntent,
                         onSlotClick = { slot ->
-                            slotsRoute = SlotsRoute.Details(slot.id)
+                            onSlotsRouteChange(SlotsRoute.Details(slot.id))
                         },
                     )
                     is SlotsRoute.Details -> SlotDetailsScreen(
                         slotId = route.slotId,
                         state = slotDetailsState,
                         onIntent = onSlotDetailsIntent,
-                        onBack = { slotsRoute = SlotsRoute.List },
-                        onBook = { slot -> slotsRoute = SlotsRoute.Booking(slot) },
+                        onBack = { onSlotsRouteChange(SlotsRoute.List) },
+                        onBook = { slot -> onSlotsRouteChange(SlotsRoute.Booking(slot)) },
                     )
                     is SlotsRoute.Booking -> BookingFormScreen(
                         slot = route.slot,
                         state = bookingFormState,
                         onIntent = onBookingFormIntent,
-                        onBack = { slotsRoute = SlotsRoute.Details(route.slot.id) },
+                        onBack = { onSlotsRouteChange(SlotsRoute.Details(route.slot.id)) },
                         onDone = {
                             onBookingFormIntent(BookingFormIntent.SuccessDismissed)
                             onSlotListIntent(SlotListIntent.Retry)
-                            slotsRoute = SlotsRoute.List
+                            onSlotsRouteChange(SlotsRoute.List)
                         },
                         onOpenBookings = {
                             onBookingFormIntent(BookingFormIntent.SuccessDismissed)
                             onSlotListIntent(SlotListIntent.Retry)
-                            slotsRoute = SlotsRoute.List
-                            bookingsRoute = BookingsRoute.List
+                            onSlotsRouteChange(SlotsRoute.List)
+                            onBookingsRouteChange(BookingsRoute.List)
                             onBookingListIntent(BookingListIntent.Refresh)
-                            selectedTab = MainTab.Bookings
+                            onSelectedTabChange(MainTab.Bookings)
                         },
                     )
                 }
@@ -371,10 +364,10 @@ private fun MainTabs(
                     BookingsRoute.List -> BookingListScreen(
                         state = bookingListState,
                         onIntent = onBookingListIntent,
-                        onBookingClick = { bookingId -> bookingsRoute = BookingsRoute.Details(bookingId) },
+                        onBookingClick = { bookingId -> onBookingsRouteChange(BookingsRoute.Details(bookingId)) },
                         onBookWalk = {
-                            slotsRoute = SlotsRoute.List
-                            selectedTab = MainTab.Slots
+                            onSlotsRouteChange(SlotsRoute.List)
+                            onSelectedTabChange(MainTab.Slots)
                         },
                     )
                     is BookingsRoute.Details -> BookingDetailsScreen(
@@ -382,7 +375,7 @@ private fun MainTabs(
                         state = bookingDetailsState,
                         clock = clock,
                         onIntent = onBookingDetailsIntent,
-                        onBack = { bookingsRoute = BookingsRoute.List },
+                        onBack = { onBookingsRouteChange(BookingsRoute.List) },
                     )
                 }
                 MainTab.Profile -> ProfileScreen(
@@ -391,17 +384,30 @@ private fun MainTabs(
                     onIntent = onProfileIntent,
                 )
             }
-            if (selectedTab != MainTab.Bookings || bookingsRoute == BookingsRoute.List) {
+            val navBarVisible = when {
+                slotsRoute is SlotsRoute.Details -> false
+                slotsRoute is SlotsRoute.Booking -> false
+                bookingsRoute is BookingsRoute.Details -> false
+                slotListState.filtersVisible -> false
+                slotDetailsState.showRouteMap -> false
+                bookingFormState.createdBooking != null -> false
+                bookingDetailsState.showCancelConfirm -> false
+                bookingDetailsState.showRouteMap -> false
+                profileState.logoutConfirmVisible -> false
+                profileState.deleteConfirmVisible -> false
+                else -> true
+            }
+            if (navBarVisible) {
                 FloatingNavigationBar(
                     selectedTab = selectedTab,
                     onTabSelected = {
                         if (it == MainTab.Slots) {
-                            slotsRoute = SlotsRoute.List
+                            onSlotsRouteChange(SlotsRoute.List)
                         }
                         if (it == MainTab.Bookings) {
-                            bookingsRoute = BookingsRoute.List
+                            onBookingsRouteChange(BookingsRoute.List)
                         }
-                        selectedTab = it
+                        onSelectedTabChange(it)
                     },
                     modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter),
                 )
@@ -409,6 +415,66 @@ private fun MainTabs(
         }
     }
 }
+
+private sealed interface BrowserRoute {
+    data object Auth : BrowserRoute
+    data object SlotsList : BrowserRoute
+    data class SlotDetails(val slotId: SlotId) : BrowserRoute
+    data object BookingsList : BrowserRoute
+    data class BookingDetails(val bookingId: BookingId) : BrowserRoute
+    data object Profile : BrowserRoute
+    data object Unknown : BrowserRoute
+}
+
+private fun parseBrowserRoute(path: String): BrowserRoute {
+    val normalized = path
+        .substringBefore('?')
+        .substringBefore('#')
+        .trim()
+        .ifBlank { ROUTE_AUTH }
+    val segments = normalized.trim('/').split('/').filter { it.isNotBlank() }
+
+    return when {
+        normalized == ROUTE_AUTH -> BrowserRoute.Auth
+        normalized == ROUTE_SLOTS -> BrowserRoute.SlotsList
+        segments.size == 2 && segments[0] == "slots" -> BrowserRoute.SlotDetails(SlotId(segments[1]))
+        normalized == ROUTE_BOOKINGS -> BrowserRoute.BookingsList
+        segments.size == 2 && segments[0] == "bookings" -> BrowserRoute.BookingDetails(BookingId(segments[1]))
+        normalized == ROUTE_PROFILE -> BrowserRoute.Profile
+        else -> BrowserRoute.Unknown
+    }
+}
+
+private fun browserPathFor(
+    rootState: RootState,
+    selectedTab: MainTab,
+    slotsRoute: SlotsRoute,
+    bookingsRoute: BookingsRoute,
+): String = when (rootState) {
+    RootState.CheckingSession,
+    RootState.Auth,
+        -> ROUTE_AUTH
+
+    RootState.Main -> when (selectedTab) {
+        MainTab.Slots -> when (slotsRoute) {
+            SlotsRoute.List -> ROUTE_SLOTS
+            is SlotsRoute.Details -> "$ROUTE_SLOTS/${slotsRoute.slotId.value}"
+            is SlotsRoute.Booking -> "$ROUTE_SLOTS/${slotsRoute.slot.id.value}"
+        }
+
+        MainTab.Bookings -> when (bookingsRoute) {
+            BookingsRoute.List -> ROUTE_BOOKINGS
+            is BookingsRoute.Details -> "$ROUTE_BOOKINGS/${bookingsRoute.bookingId.value}"
+        }
+
+        MainTab.Profile -> ROUTE_PROFILE
+    }
+}
+
+private const val ROUTE_AUTH = "/auth"
+private const val ROUTE_SLOTS = "/slots"
+private const val ROUTE_BOOKINGS = "/bookings"
+private const val ROUTE_PROFILE = "/profile"
 
 @Composable
 private fun FloatingNavigationBar(
@@ -474,4 +540,3 @@ private fun NavItem(
         size = VolnaTheme.tokens.spacing.xl,
     )
 }
-

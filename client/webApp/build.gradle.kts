@@ -24,6 +24,7 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(libs.kotlinx.browser)
+            implementation(libs.skiko.js.wasm.runtime)
         }
     }
 }

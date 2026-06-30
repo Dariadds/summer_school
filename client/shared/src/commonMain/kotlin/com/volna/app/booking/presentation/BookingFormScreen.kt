@@ -1,28 +1,9 @@
 package com.volna.app.booking.presentation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -35,17 +16,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.domain.model.Booking
-import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
 import com.volna.app.domain.policy.BookingPriceCalculator
 import com.volna.app.uikit.icons.Back
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Info
 import com.volna.app.uikit.icons.VolnaIcon
-import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Month
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 @Composable
 fun BookingFormScreen(
@@ -59,12 +35,11 @@ fun BookingFormScreen(
     LaunchedEffect(slot.id) {
         onIntent(BookingFormIntent.Open(slot))
     }
-    Box(Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = VolnaTheme.tokens.spacing.md)
-                .offset(y = 74.dp),
+                .padding(horizontal = VolnaTheme.tokens.spacing.md, vertical = 18.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
         ) {
@@ -76,17 +51,19 @@ fun BookingFormScreen(
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
-        BookingFormContent(
-            state = state,
-            onIntent = onIntent,
-        )
-        state.createdBooking?.let { booking ->
-            BookingSuccessSheet(
-                booking = booking,
-                fallbackPrice = state.totalPrice?.value ?: 0,
-                onDone = onDone,
-                onOpenBookings = onOpenBookings,
+        Box(modifier = Modifier.fillMaxSize()) {
+            BookingFormContent(
+                state = state,
+                onIntent = onIntent,
             )
+            state.createdBooking?.let { booking ->
+                BookingSuccessSheet(
+                    booking = booking,
+                    fallbackPrice = state.totalPrice?.value ?: 0,
+                    onDone = onDone,
+                    onOpenBookings = onOpenBookings,
+                )
+            }
         }
     }
 }
@@ -104,9 +81,9 @@ private fun BookingFormContent(
     val rentalTotal = rentalPrice * state.rentalCount
     Column(
         modifier = Modifier
-            .width(VolnaTheme.tokens.sizing.contentWidth)
-            .offset(x = VolnaTheme.tokens.spacing.md, y = VolnaTheme.tokens.sizing.listCardTopY)
-            .verticalScroll(rememberScrollState()),
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = VolnaTheme.tokens.spacing.md),
         verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.lg),
     ) {
         slot?.let {
