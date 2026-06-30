@@ -1,6 +1,7 @@
 package com.volna.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,14 +14,12 @@ import androidx.compose.ui.text.font.FontWeight
 import com.volna.app.auth.SessionRepository
 import com.volna.app.auth.presentation.AuthEffect
 import com.volna.app.auth.presentation.AuthIntent
-import com.volna.app.auth.presentation.AuthScreen
 import com.volna.app.auth.presentation.AuthStore
 import com.volna.app.booking.presentation.*
 import com.volna.app.catalog.presentation.*
 import com.volna.app.core.config.AppConfig
 import com.volna.app.core.navigation.BindBrowserNavigation
 import com.volna.app.core.navigation.BindSystemBack
-import com.volna.app.core.navigation.currentBrowserPath
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.time.AppClock
 import com.volna.app.profile.presentation.ProfileEffect
@@ -28,14 +27,17 @@ import com.volna.app.profile.presentation.ProfileIntent
 import com.volna.app.profile.presentation.ProfileMode
 import com.volna.app.profile.presentation.ProfileStore
 import kotlinx.coroutines.launch
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun VolnaApp() {
     VolnaTheme {
-        val initialBrowserPath = remember { currentBrowserPath() ?: ROUTE_AUTH }
         val appScope = rememberCoroutineScope()
+        val navController = rememberNavController()
         val appConfig = koinInject<AppConfig>()
         val clock = koinInject<AppClock>()
         val sessionRepository = koinInject<SessionRepository>()
@@ -54,47 +56,8 @@ fun VolnaApp() {
         val bookingListState by bookingListStore.state.collectAsState()
         val bookingDetailsState by bookingDetailsStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
-        var selectedTab by remember { mutableStateOf(MainTab.Slots) }
-        var slotsRoute by remember { mutableStateOf<SlotsRoute>(SlotsRoute.List) }
-        var bookingsRoute by remember { mutableStateOf<BookingsRoute>(BookingsRoute.List) }
-
-        fun applyBrowserPath(path: String, hasSession: Boolean) {
-            val route = parseBrowserRoute(path)
-            if (!hasSession) {
-                rootState = RootState.Auth
-                return
-            }
-
-            rootState = RootState.Main
-            when (route) {
-                BrowserRoute.Auth,
-                BrowserRoute.SlotsList,
-                BrowserRoute.Unknown,
-                    -> {
-                    selectedTab = MainTab.Slots
-                    slotsRoute = SlotsRoute.List
-                }
-
-                is BrowserRoute.SlotDetails -> {
-                    selectedTab = MainTab.Slots
-                    slotsRoute = SlotsRoute.Details(route.slotId)
-                }
-
-                BrowserRoute.BookingsList -> {
-                    selectedTab = MainTab.Bookings
-                    bookingsRoute = BookingsRoute.List
-                }
-
-                is BrowserRoute.BookingDetails -> {
-                    selectedTab = MainTab.Bookings
-                    bookingsRoute = BookingsRoute.Details(route.bookingId)
-                }
-
-                BrowserRoute.Profile -> {
-                    selectedTab = MainTab.Profile
-                }
-            }
-        }
+        val backStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = backStackEntry?.destination?.route
 
         fun resetToAuth() {
             appScope.launch {
@@ -107,18 +70,21 @@ fun VolnaApp() {
             bookingFormStore.accept(BookingFormIntent.Reset)
             bookingListStore.accept(BookingListIntent.Reset)
             bookingDetailsStore.accept(BookingDetailsIntent.Reset)
-            selectedTab = MainTab.Slots
-            slotsRoute = SlotsRoute.List
-            bookingsRoute = BookingsRoute.List
-            rootState = RootState.Auth
+            rootState = RootState.Ready
+            navController.navigate(AUTH_ROUTE) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    inclusive = true
+                }
+                launchSingleTop = true
+            }
         }
 
         fun canHandleSystemBack(): Boolean = when (rootState) {
             RootState.CheckingSession -> false
 
-            RootState.Auth -> authState.step != com.volna.app.auth.presentation.AuthStep.Phone
-
-            RootState.Main -> when {
+            RootState.Ready -> when {
+                currentRoute == AUTH_ROUTE ->
+                    authState.step != com.volna.app.auth.presentation.AuthStep.Phone
                 slotListState.filtersVisible -> true
                 slotDetailsState.showRouteMap -> true
                 bookingFormState.createdBooking != null -> true
@@ -126,12 +92,14 @@ fun VolnaApp() {
                 bookingDetailsState.showRouteMap -> true
                 profileState.logoutConfirmVisible -> true
                 profileState.deleteConfirmVisible -> true
-                selectedTab == MainTab.Slots && slotsRoute is SlotsRoute.Booking -> true
-                selectedTab == MainTab.Slots && slotsRoute is SlotsRoute.Details -> true
-                selectedTab == MainTab.Bookings && bookingsRoute is BookingsRoute.Details -> true
-                selectedTab == MainTab.Profile && profileState.mode == ProfileMode.ConfirmPhone -> true
-                selectedTab == MainTab.Profile && profileState.mode == ProfileMode.Edit -> true
-                selectedTab != MainTab.Slots -> true
+                currentRoute == SLOT_BOOKING_ROUTE -> true
+                currentRoute == SLOT_DETAILS_ROUTE -> true
+                currentRoute == BOOKING_DETAILS_ROUTE -> true
+                currentRoute == PROFILE_ROUTE &&
+                    profileState.mode == ProfileMode.ConfirmPhone -> true
+                currentRoute == PROFILE_ROUTE &&
+                    profileState.mode == ProfileMode.Edit -> true
+                currentRoute != SLOTS_ROUTE -> true
                 else -> false
             }
         }
@@ -139,17 +107,17 @@ fun VolnaApp() {
         fun handleSystemBack() = when (rootState) {
             RootState.CheckingSession -> false
 
-            RootState.Auth -> when (authState.step) {
-                com.volna.app.auth.presentation.AuthStep.Phone -> false
-                com.volna.app.auth.presentation.AuthStep.Otp,
-                com.volna.app.auth.presentation.AuthStep.Name,
-                    -> {
-                    authStore.accept(AuthIntent.BackToPhone)
-                    true
+            RootState.Ready -> when {
+                currentRoute == AUTH_ROUTE -> when (authState.step) {
+                    com.volna.app.auth.presentation.AuthStep.Phone -> false
+                    com.volna.app.auth.presentation.AuthStep.Otp,
+                    com.volna.app.auth.presentation.AuthStep.Name,
+                        -> {
+                        authStore.accept(AuthIntent.BackToPhone)
+                        true
+                    }
                 }
-            }
 
-            RootState.Main -> when {
                 slotListState.filtersVisible -> {
                     slotListStore.accept(SlotListIntent.CloseFilters)
                     true
@@ -185,35 +153,41 @@ fun VolnaApp() {
                     true
                 }
 
-                selectedTab == MainTab.Slots && slotsRoute is SlotsRoute.Booking -> {
-                    val slot = (slotsRoute as SlotsRoute.Booking).slot
-                    slotsRoute = SlotsRoute.Details(slot.id)
+                currentRoute == SLOT_BOOKING_ROUTE -> {
+                    navController.popBackStack()
                     true
                 }
 
-                selectedTab == MainTab.Slots && slotsRoute is SlotsRoute.Details -> {
-                    slotsRoute = SlotsRoute.List
+                currentRoute == SLOT_DETAILS_ROUTE -> {
+                    navController.popBackStack()
                     true
                 }
 
-                selectedTab == MainTab.Bookings && bookingsRoute is BookingsRoute.Details -> {
-                    bookingsRoute = BookingsRoute.List
+                currentRoute == BOOKING_DETAILS_ROUTE -> {
+                    navController.popBackStack()
                     true
                 }
 
-                selectedTab == MainTab.Profile && profileState.mode == ProfileMode.ConfirmPhone -> {
+                currentRoute == PROFILE_ROUTE &&
+                    profileState.mode == ProfileMode.ConfirmPhone -> {
                     profileStore.accept(ProfileIntent.BackToEdit)
                     true
                 }
 
-                selectedTab == MainTab.Profile && profileState.mode == ProfileMode.Edit -> {
+                currentRoute == PROFILE_ROUTE &&
+                    profileState.mode == ProfileMode.Edit -> {
                     profileStore.accept(ProfileIntent.EditCancelled)
                     true
                 }
 
-                selectedTab != MainTab.Slots -> {
-                    selectedTab = MainTab.Slots
-                    slotsRoute = SlotsRoute.List
+                currentRoute != SLOTS_ROUTE -> {
+                    navController.navigate(SLOTS_ROUTE) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                     true
                 }
 
@@ -221,32 +195,30 @@ fun VolnaApp() {
             }
         }
 
-        val browserPath = remember(rootState, selectedTab, slotsRoute, bookingsRoute, initialBrowserPath) {
-            if (rootState == RootState.CheckingSession) {
-                initialBrowserPath
-            } else {
-                browserPathFor(rootState, selectedTab, slotsRoute, bookingsRoute)
-            }
-        }
-
-        if (rootState != RootState.CheckingSession) {
-            BindBrowserNavigation(currentPath = browserPath) { path ->
-                applyBrowserPath(path, hasSession = rootState == RootState.Main)
-            }
-        }
-
+        BindBrowserNavigation(navController)
         BindSystemBack(enabled = canHandleSystemBack()) {
             handleSystemBack()
         }
 
         LaunchedEffect(sessionRepository) {
             if (sessionRepository.token().isNullOrBlank()) {
-                selectedTab = MainTab.Slots
-                slotsRoute = SlotsRoute.List
-                bookingsRoute = BookingsRoute.List
-                rootState = RootState.Auth
+                rootState = RootState.Ready
+                navController.navigate(AUTH_ROUTE) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        inclusive = true
+                    }
+                    launchSingleTop = true
+                }
             } else {
-                applyBrowserPath(initialBrowserPath, hasSession = true)
+                rootState = RootState.Ready
+                if (navController.currentDestination?.route == AUTH_ROUTE || navController.currentDestination == null) {
+                    navController.navigate(SLOTS_ROUTE) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
             }
         }
 
@@ -254,7 +226,13 @@ fun VolnaApp() {
             while (true) {
                 when (authStore.effects()) {
                     AuthEffect.Authenticated -> {
-                        applyBrowserPath(currentBrowserPath() ?: ROUTE_SLOTS, hasSession = true)
+                        rootState = RootState.Ready
+                        navController.navigate(SLOTS_ROUTE) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                        }
                     }
                 }
             }
@@ -309,19 +287,11 @@ fun VolnaApp() {
             }
         }
 
-        when (rootState) {
-            RootState.CheckingSession -> SessionSplash()
-            RootState.Auth -> AuthScreen(
-                state = authState,
-                onIntent = authStore::accept,
-            )
-            RootState.Main -> MainTabs(
-                selectedTab = selectedTab,
-                onSelectedTabChange = { selectedTab = it },
-                slotsRoute = slotsRoute,
-                onSlotsRouteChange = { slotsRoute = it },
-                bookingsRoute = bookingsRoute,
-                onBookingsRouteChange = { bookingsRoute = it },
+        Box(Modifier.fillMaxSize()) {
+            MainTabs(
+                navController = navController,
+                authState = authState,
+                onAuthIntent = authStore::accept,
                 slotListState = slotListState,
                 onSlotListIntent = slotListStore::accept,
                 slotDetailsState = slotDetailsState,
@@ -337,6 +307,9 @@ fun VolnaApp() {
                 profileState = profileState,
                 onProfileIntent = profileStore::accept,
             )
+            if (rootState == RootState.CheckingSession) {
+                SessionSplash()
+            }
         }
     }
 }

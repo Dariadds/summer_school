@@ -1,12 +1,10 @@
 package com.volna.app.core.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 
 @Composable
-actual fun BindBrowserNavigation(
-    currentPath: String,
-    onPathChange: (String) -> Unit,
-) {
+actual fun BindBrowserNavigation(navController: NavHostController) {
 }
 
 @Composable
@@ -15,5 +13,3 @@ actual fun BindSystemBack(
     onBack: () -> Unit,
 ) {
 }
-
-actual fun currentBrowserPath(): String? = null

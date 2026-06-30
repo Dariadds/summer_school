@@ -2,12 +2,10 @@ package com.volna.app.core.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 
 @Composable
-actual fun BindBrowserNavigation(
-    currentPath: String,
-    onPathChange: (String) -> Unit,
-) {
+actual fun BindBrowserNavigation(navController: NavHostController) {
 }
 
 @Composable
@@ -17,5 +15,3 @@ actual fun BindSystemBack(
 ) {
     BackHandler(enabled = enabled, onBack = onBack)
 }
-
-actual fun currentBrowserPath(): String? = null

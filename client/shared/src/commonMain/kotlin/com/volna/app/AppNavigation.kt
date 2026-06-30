@@ -1,7 +1,6 @@
 package com.volna.app
 
 import com.volna.app.domain.model.BookingId
-import com.volna.app.domain.model.Slot
 import com.volna.app.domain.model.SlotId
 
 internal enum class MainTab(val title: String) {
@@ -12,77 +11,36 @@ internal enum class MainTab(val title: String) {
 
 internal enum class RootState {
     CheckingSession,
-    Auth,
-    Main,
+    Ready,
 }
 
-internal sealed interface SlotsRoute {
-    data object List : SlotsRoute
-    data class Details(val slotId: SlotId) : SlotsRoute
-    data class Booking(val slot: Slot) : SlotsRoute
+internal const val AUTH_ROUTE = "auth"
+internal const val SLOTS_ROUTE = "slots"
+internal const val SLOT_DETAILS_ROUTE = "slot/{slotId}"
+internal const val SLOT_BOOKING_ROUTE = "slot/{slotId}/booking"
+internal const val BOOKINGS_ROUTE = "bookings"
+internal const val BOOKING_DETAILS_ROUTE = "booking/{bookingId}"
+internal const val PROFILE_ROUTE = "profile"
+
+internal fun slotDetailsRoute(slotId: SlotId): String = "slot/${slotId.value}"
+
+internal fun slotBookingRoute(slotId: SlotId): String = "slot/${slotId.value}/booking"
+
+internal fun bookingDetailsRoute(bookingId: BookingId): String = "booking/${bookingId.value}"
+
+internal fun String?.asSlotId(): SlotId = SlotId(orEmpty())
+
+internal fun String?.asBookingId(): BookingId = BookingId(orEmpty())
+
+internal fun MainTab.destinationRoute(): String = when (this) {
+    MainTab.Slots -> SLOTS_ROUTE
+    MainTab.Bookings -> BOOKINGS_ROUTE
+    MainTab.Profile -> PROFILE_ROUTE
 }
 
-internal sealed interface BookingsRoute {
-    data object List : BookingsRoute
-    data class Details(val bookingId: BookingId) : BookingsRoute
+internal fun String?.mainTab(): MainTab = when {
+    this == BOOKINGS_ROUTE -> MainTab.Bookings
+    this == BOOKING_DETAILS_ROUTE -> MainTab.Bookings
+    this == PROFILE_ROUTE -> MainTab.Profile
+    else -> MainTab.Slots
 }
-
-internal sealed interface BrowserRoute {
-    data object Auth : BrowserRoute
-    data object SlotsList : BrowserRoute
-    data class SlotDetails(val slotId: SlotId) : BrowserRoute
-    data object BookingsList : BrowserRoute
-    data class BookingDetails(val bookingId: BookingId) : BrowserRoute
-    data object Profile : BrowserRoute
-    data object Unknown : BrowserRoute
-}
-
-internal fun parseBrowserRoute(path: String): BrowserRoute {
-    val normalized = path
-        .substringBefore('?')
-        .substringBefore('#')
-        .trim()
-        .ifBlank { ROUTE_AUTH }
-    val segments = normalized.trim('/').split('/').filter { it.isNotBlank() }
-
-    return when {
-        normalized == ROUTE_AUTH -> BrowserRoute.Auth
-        normalized == ROUTE_SLOTS -> BrowserRoute.SlotsList
-        segments.size == 2 && segments[0] == "slots" -> BrowserRoute.SlotDetails(SlotId(segments[1]))
-        normalized == ROUTE_BOOKINGS -> BrowserRoute.BookingsList
-        segments.size == 2 && segments[0] == "bookings" -> BrowserRoute.BookingDetails(BookingId(segments[1]))
-        normalized == ROUTE_PROFILE -> BrowserRoute.Profile
-        else -> BrowserRoute.Unknown
-    }
-}
-
-internal fun browserPathFor(
-    rootState: RootState,
-    selectedTab: MainTab,
-    slotsRoute: SlotsRoute,
-    bookingsRoute: BookingsRoute,
-): String = when (rootState) {
-    RootState.CheckingSession,
-    RootState.Auth,
-        -> ROUTE_AUTH
-
-    RootState.Main -> when (selectedTab) {
-        MainTab.Slots -> when (slotsRoute) {
-            SlotsRoute.List -> ROUTE_SLOTS
-            is SlotsRoute.Details -> "$ROUTE_SLOTS/${slotsRoute.slotId.value}"
-            is SlotsRoute.Booking -> "$ROUTE_SLOTS/${slotsRoute.slot.id.value}"
-        }
-
-        MainTab.Bookings -> when (bookingsRoute) {
-            BookingsRoute.List -> ROUTE_BOOKINGS
-            is BookingsRoute.Details -> "$ROUTE_BOOKINGS/${bookingsRoute.bookingId.value}"
-        }
-
-        MainTab.Profile -> ROUTE_PROFILE
-    }
-}
-
-internal const val ROUTE_AUTH = "/auth"
-internal const val ROUTE_SLOTS = "/slots"
-internal const val ROUTE_BOOKINGS = "/bookings"
-internal const val ROUTE_PROFILE = "/profile"

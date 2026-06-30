@@ -41,6 +41,7 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.kotlinx.lifecycle.viewmodel)
+            implementation(libs.navigation.compose)
             implementation(libs.serialization.json)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
