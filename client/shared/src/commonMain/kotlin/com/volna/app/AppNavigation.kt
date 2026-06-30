@@ -2,6 +2,8 @@ package com.volna.app
 
 import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.SlotId
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 internal enum class MainTab(val title: String) {
     Slots("Прогулки"),
@@ -14,33 +16,42 @@ internal enum class RootState {
     Ready,
 }
 
-internal const val AUTH_ROUTE = "auth"
-internal const val SLOTS_ROUTE = "slots"
-internal const val SLOT_DETAILS_ROUTE = "slot/{slotId}"
-internal const val SLOT_BOOKING_ROUTE = "slot/{slotId}/booking"
-internal const val BOOKINGS_ROUTE = "bookings"
-internal const val BOOKING_DETAILS_ROUTE = "booking/{bookingId}"
-internal const val PROFILE_ROUTE = "profile"
+@Serializable
+@SerialName("auth")
+internal data object AuthDestination
 
-internal fun slotDetailsRoute(slotId: SlotId): String = "slot/${slotId.value}"
+@Serializable
+@SerialName("slots")
+internal data object SlotsDestination
 
-internal fun slotBookingRoute(slotId: SlotId): String = "slot/${slotId.value}/booking"
+@Serializable
+@SerialName("slot")
+internal data class SlotDetailsDestination(val slotId: String)
 
-internal fun bookingDetailsRoute(bookingId: BookingId): String = "booking/${bookingId.value}"
+@Serializable
+@SerialName("slot-booking")
+internal data class SlotBookingDestination(val slotId: String)
 
-internal fun String?.asSlotId(): SlotId = SlotId(orEmpty())
+@Serializable
+@SerialName("bookings")
+internal data object BookingsDestination
 
-internal fun String?.asBookingId(): BookingId = BookingId(orEmpty())
+@Serializable
+@SerialName("booking")
+internal data class BookingDetailsDestination(val bookingId: String)
 
-internal fun MainTab.destinationRoute(): String = when (this) {
-    MainTab.Slots -> SLOTS_ROUTE
-    MainTab.Bookings -> BOOKINGS_ROUTE
-    MainTab.Profile -> PROFILE_ROUTE
-}
+@Serializable
+@SerialName("profile")
+internal data object ProfileDestination
 
-internal fun String?.mainTab(): MainTab = when {
-    this == BOOKINGS_ROUTE -> MainTab.Bookings
-    this == BOOKING_DETAILS_ROUTE -> MainTab.Bookings
-    this == PROFILE_ROUTE -> MainTab.Profile
-    else -> MainTab.Slots
+internal fun SlotDetailsDestination.slotId(): SlotId = SlotId(slotId)
+
+internal fun SlotBookingDestination.slotId(): SlotId = SlotId(slotId)
+
+internal fun BookingDetailsDestination.bookingId(): BookingId = BookingId(bookingId)
+
+internal fun MainTab.destination(): Any = when (this) {
+    MainTab.Slots -> SlotsDestination
+    MainTab.Bookings -> BookingsDestination
+    MainTab.Profile -> ProfileDestination
 }

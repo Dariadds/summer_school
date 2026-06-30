@@ -16,7 +16,6 @@ import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.InstructorId
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
-import kotlinx.datetime.Clock
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
@@ -29,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 data class SlotListState(
     val slots: Loadable<List<Slot>> = Loadable.Initial,

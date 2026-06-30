@@ -27,6 +27,8 @@ import com.volna.app.profile.presentation.ProfileIntent
 import com.volna.app.profile.presentation.ProfileMode
 import com.volna.app.profile.presentation.ProfileStore
 import kotlinx.coroutines.launch
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -57,7 +59,7 @@ fun VolnaApp() {
         val bookingDetailsState by bookingDetailsStore.state.collectAsState()
         var rootState by remember { mutableStateOf(RootState.CheckingSession) }
         val backStackEntry by navController.currentBackStackEntryAsState()
-        val currentRoute = backStackEntry?.destination?.route
+        val currentDestination = backStackEntry?.destination
 
         fun resetToAuth() {
             appScope.launch {
@@ -71,7 +73,7 @@ fun VolnaApp() {
             bookingListStore.accept(BookingListIntent.Reset)
             bookingDetailsStore.accept(BookingDetailsIntent.Reset)
             rootState = RootState.Ready
-            navController.navigate(AUTH_ROUTE) {
+            navController.navigate(AuthDestination) {
                 popUpTo(navController.graph.findStartDestination().id) {
                     inclusive = true
                 }
@@ -83,7 +85,7 @@ fun VolnaApp() {
             RootState.CheckingSession -> false
 
             RootState.Ready -> when {
-                currentRoute == AUTH_ROUTE ->
+                currentDestination?.hasRoute<AuthDestination>() == true ->
                     authState.step != com.volna.app.auth.presentation.AuthStep.Phone
                 slotListState.filtersVisible -> true
                 slotDetailsState.showRouteMap -> true
@@ -92,14 +94,14 @@ fun VolnaApp() {
                 bookingDetailsState.showRouteMap -> true
                 profileState.logoutConfirmVisible -> true
                 profileState.deleteConfirmVisible -> true
-                currentRoute == SLOT_BOOKING_ROUTE -> true
-                currentRoute == SLOT_DETAILS_ROUTE -> true
-                currentRoute == BOOKING_DETAILS_ROUTE -> true
-                currentRoute == PROFILE_ROUTE &&
+                currentDestination?.hasRoute<SlotBookingDestination>() == true -> true
+                currentDestination?.hasRoute<SlotDetailsDestination>() == true -> true
+                currentDestination?.hasRoute<BookingDetailsDestination>() == true -> true
+                currentDestination?.hasRoute<ProfileDestination>() == true &&
                     profileState.mode == ProfileMode.ConfirmPhone -> true
-                currentRoute == PROFILE_ROUTE &&
+                currentDestination?.hasRoute<ProfileDestination>() == true &&
                     profileState.mode == ProfileMode.Edit -> true
-                currentRoute != SLOTS_ROUTE -> true
+                currentDestination?.hasRoute<SlotsDestination>() != true -> true
                 else -> false
             }
         }
@@ -108,7 +110,7 @@ fun VolnaApp() {
             RootState.CheckingSession -> false
 
             RootState.Ready -> when {
-                currentRoute == AUTH_ROUTE -> when (authState.step) {
+                currentDestination?.hasRoute<AuthDestination>() == true -> when (authState.step) {
                     com.volna.app.auth.presentation.AuthStep.Phone -> false
                     com.volna.app.auth.presentation.AuthStep.Otp,
                     com.volna.app.auth.presentation.AuthStep.Name,
@@ -153,35 +155,35 @@ fun VolnaApp() {
                     true
                 }
 
-                currentRoute == SLOT_BOOKING_ROUTE -> {
+                currentDestination?.hasRoute<SlotBookingDestination>() == true -> {
                     navController.popBackStack()
                     true
                 }
 
-                currentRoute == SLOT_DETAILS_ROUTE -> {
+                currentDestination?.hasRoute<SlotDetailsDestination>() == true -> {
                     navController.popBackStack()
                     true
                 }
 
-                currentRoute == BOOKING_DETAILS_ROUTE -> {
+                currentDestination?.hasRoute<BookingDetailsDestination>() == true -> {
                     navController.popBackStack()
                     true
                 }
 
-                currentRoute == PROFILE_ROUTE &&
+                currentDestination?.hasRoute<ProfileDestination>() == true &&
                     profileState.mode == ProfileMode.ConfirmPhone -> {
                     profileStore.accept(ProfileIntent.BackToEdit)
                     true
                 }
 
-                currentRoute == PROFILE_ROUTE &&
+                currentDestination?.hasRoute<ProfileDestination>() == true &&
                     profileState.mode == ProfileMode.Edit -> {
                     profileStore.accept(ProfileIntent.EditCancelled)
                     true
                 }
 
-                currentRoute != SLOTS_ROUTE -> {
-                    navController.navigate(SLOTS_ROUTE) {
+                currentDestination?.hasRoute<SlotsDestination>() != true -> {
+                    navController.navigate(SlotsDestination) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
                         }
@@ -203,7 +205,7 @@ fun VolnaApp() {
         LaunchedEffect(sessionRepository) {
             if (sessionRepository.token().isNullOrBlank()) {
                 rootState = RootState.Ready
-                navController.navigate(AUTH_ROUTE) {
+                navController.navigate(AuthDestination) {
                     popUpTo(navController.graph.findStartDestination().id) {
                         inclusive = true
                     }
@@ -211,8 +213,8 @@ fun VolnaApp() {
                 }
             } else {
                 rootState = RootState.Ready
-                if (navController.currentDestination?.route == AUTH_ROUTE || navController.currentDestination == null) {
-                    navController.navigate(SLOTS_ROUTE) {
+                if (navController.currentDestination.isAuthOrMissing()) {
+                    navController.navigate(SlotsDestination) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             inclusive = true
                         }
@@ -227,7 +229,7 @@ fun VolnaApp() {
                 when (authStore.effects()) {
                     AuthEffect.Authenticated -> {
                         rootState = RootState.Ready
-                        navController.navigate(SLOTS_ROUTE) {
+                        navController.navigate(SlotsDestination) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 inclusive = true
                             }
@@ -313,6 +315,9 @@ fun VolnaApp() {
         }
     }
 }
+
+private fun NavDestination?.isAuthOrMissing(): Boolean =
+    this == null || hasRoute<AuthDestination>()
 
 @Composable
 private fun SessionSplash() {

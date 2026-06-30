@@ -18,13 +18,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import com.volna.app.booking.presentation.BookingDetailsIntent
 import com.volna.app.booking.presentation.BookingDetailsScreen
 import com.volna.app.booking.presentation.BookingDetailsState
@@ -77,8 +78,8 @@ internal fun MainTabs(
     onProfileIntent: (ProfileIntent) -> Unit,
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-    val selectedTab = currentRoute.mainTab()
+    val currentDestination = backStackEntry?.destination
+    val selectedTab = currentDestination.mainTab()
 
     Box(
         modifier = Modifier
@@ -93,53 +94,47 @@ internal fun MainTabs(
         ) {
             NavHost(
                 navController = navController,
-                startDestination = AUTH_ROUTE,
+                startDestination = AuthDestination,
             ) {
-                composable(AUTH_ROUTE) {
+                composable<AuthDestination> {
                     AuthScreen(
                         state = authState,
                         onIntent = onAuthIntent,
                     )
                 }
 
-                composable(SLOTS_ROUTE) {
+                composable<SlotsDestination> {
                     SlotListScreen(
                         state = slotListState,
                         onIntent = onSlotListIntent,
                         onSlotClick = { slot ->
-                            navController.navigate(slotDetailsRoute(slot.id))
+                            navController.navigate(SlotDetailsDestination(slot.id.value))
                         },
                     )
                 }
 
-                composable(
-                    route = SLOT_DETAILS_ROUTE,
-                    arguments = listOf(navArgument("slotId") { type = NavType.StringType }),
-                ) { entry ->
-                    val slotId = entry.arguments?.getString("slotId").asSlotId()
+                composable<SlotDetailsDestination> { entry ->
+                    val route = entry.toRoute<SlotDetailsDestination>()
                     SlotDetailsScreen(
-                        slotId = slotId,
+                        slotId = route.slotId(),
                         state = slotDetailsState,
                         onIntent = onSlotDetailsIntent,
                         onBack = { navController.popBackStack() },
-                        onBook = { slot -> navController.navigate(slotBookingRoute(slot.id)) },
+                        onBook = { slot -> navController.navigate(SlotBookingDestination(slot.id.value)) },
                     )
                 }
 
-                composable(
-                    route = SLOT_BOOKING_ROUTE,
-                    arguments = listOf(navArgument("slotId") { type = NavType.StringType }),
-                ) { entry ->
-                    val slotId = entry.arguments?.getString("slotId").asSlotId()
+                composable<SlotBookingDestination> { entry ->
+                    val route = entry.toRoute<SlotBookingDestination>()
                     val loadedSlot = (slotDetailsState.slot as? Loadable.Content)?.value
-                        ?.takeIf { it.id == slotId }
+                        ?.takeIf { it.id == route.slotId() }
                     if (loadedSlot == null) {
                         SlotDetailsScreen(
-                            slotId = slotId,
+                            slotId = route.slotId(),
                             state = slotDetailsState,
                             onIntent = onSlotDetailsIntent,
                             onBack = { navController.popBackStack() },
-                            onBook = { slot -> navController.navigate(slotBookingRoute(slot.id)) },
+                            onBook = { slot -> navController.navigate(SlotBookingDestination(slot.id.value)) },
                         )
                     } else {
                         BookingFormScreen(
@@ -150,8 +145,8 @@ internal fun MainTabs(
                             onDone = {
                                 onBookingFormIntent(BookingFormIntent.SuccessDismissed)
                                 onSlotListIntent(SlotListIntent.Retry)
-                                navController.navigate(SLOTS_ROUTE) {
-                                    popUpTo(SLOTS_ROUTE) { inclusive = false }
+                                navController.navigate(SlotsDestination) {
+                                    popUpTo<SlotsDestination> { inclusive = false }
                                     launchSingleTop = true
                                 }
                             },
@@ -159,8 +154,8 @@ internal fun MainTabs(
                                 onBookingFormIntent(BookingFormIntent.SuccessDismissed)
                                 onSlotListIntent(SlotListIntent.Retry)
                                 onBookingListIntent(BookingListIntent.Refresh)
-                                navController.navigate(BOOKINGS_ROUTE) {
-                                    popUpTo(SLOTS_ROUTE) { inclusive = false }
+                                navController.navigate(BookingsDestination) {
+                                    popUpTo<SlotsDestination> { inclusive = false }
                                     launchSingleTop = true
                                 }
                             },
@@ -168,15 +163,15 @@ internal fun MainTabs(
                     }
                 }
 
-                composable(BOOKINGS_ROUTE) {
+                composable<BookingsDestination> {
                     BookingListScreen(
                         state = bookingListState,
                         onIntent = onBookingListIntent,
                         onBookingClick = { bookingId ->
-                            navController.navigate(bookingDetailsRoute(bookingId))
+                            navController.navigate(BookingDetailsDestination(bookingId.value))
                         },
                         onBookWalk = {
-                            navController.navigate(SLOTS_ROUTE) {
+                            navController.navigate(SlotsDestination) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
@@ -187,13 +182,10 @@ internal fun MainTabs(
                     )
                 }
 
-                composable(
-                    route = BOOKING_DETAILS_ROUTE,
-                    arguments = listOf(navArgument("bookingId") { type = NavType.StringType }),
-                ) { entry ->
-                    val bookingId = entry.arguments?.getString("bookingId").asBookingId()
+                composable<BookingDetailsDestination> { entry ->
+                    val route = entry.toRoute<BookingDetailsDestination>()
                     BookingDetailsScreen(
-                        bookingId = bookingId,
+                        bookingId = route.bookingId(),
                         state = bookingDetailsState,
                         clock = clock,
                         onIntent = onBookingDetailsIntent,
@@ -201,7 +193,7 @@ internal fun MainTabs(
                     )
                 }
 
-                composable(PROFILE_ROUTE) {
+                composable<ProfileDestination> {
                     ProfileScreen(
                         state = profileState,
                         appConfig = appConfig,
@@ -211,7 +203,7 @@ internal fun MainTabs(
             }
 
             if (isNavBarVisible(
-                    currentRoute = currentRoute,
+                    currentDestination = currentDestination,
                     slotListState = slotListState,
                     slotDetailsState = slotDetailsState,
                     bookingFormState = bookingFormState,
@@ -222,7 +214,7 @@ internal fun MainTabs(
                 FloatingNavigationBar(
                     selectedTab = selectedTab,
                     onTabSelected = { tab ->
-                        navController.navigate(tab.destinationRoute()) {
+                        navController.navigate(tab.destination()) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -238,17 +230,17 @@ internal fun MainTabs(
 }
 
 private fun isNavBarVisible(
-    currentRoute: String?,
+    currentDestination: NavDestination?,
     slotListState: SlotListState,
     slotDetailsState: SlotDetailsState,
     bookingFormState: BookingFormState,
     bookingDetailsState: BookingDetailsState,
     profileState: ProfileState,
 ): Boolean = when {
-    currentRoute == AUTH_ROUTE -> false
-    currentRoute == SLOT_DETAILS_ROUTE -> false
-    currentRoute == SLOT_BOOKING_ROUTE -> false
-    currentRoute == BOOKING_DETAILS_ROUTE -> false
+    currentDestination?.hasRoute<AuthDestination>() == true -> false
+    currentDestination?.hasRoute<SlotDetailsDestination>() == true -> false
+    currentDestination?.hasRoute<SlotBookingDestination>() == true -> false
+    currentDestination?.hasRoute<BookingDetailsDestination>() == true -> false
     slotListState.filtersVisible -> false
     slotDetailsState.showRouteMap -> false
     bookingFormState.createdBooking != null -> false
@@ -257,6 +249,13 @@ private fun isNavBarVisible(
     profileState.logoutConfirmVisible -> false
     profileState.deleteConfirmVisible -> false
     else -> true
+}
+
+private fun NavDestination?.mainTab(): MainTab = when {
+    this?.hasRoute<BookingsDestination>() == true -> MainTab.Bookings
+    this?.hasRoute<BookingDetailsDestination>() == true -> MainTab.Bookings
+    this?.hasRoute<ProfileDestination>() == true -> MainTab.Profile
+    else -> MainTab.Slots
 }
 
 @Composable

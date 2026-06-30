@@ -1,7 +1,7 @@
 package com.volna.app.core.time
 
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlin.time.Clock
 
 fun interface AppClock {
     fun now(): Instant
