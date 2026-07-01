@@ -14,7 +14,7 @@
 | **Бриф для дизайна** | [3-design-brief/](3-design-brief/) | [design-brief.md](3-design-brief/design-brief.md) — требования для UI/UX дизайнера |
 | **3. Проектирование** | [4-design/](4-design/) | [data-model.md](4-design/data-model.md), [api-sequence.md](4-design/api-sequence.md) |
 | **4. ТЗ** | [5-mobile-app-spec/](5-mobile-app-spec/) | [README.md](5-mobile-app-spec/README.md) — шаблон продумаем совместно |
-| **API (Swagger)** | [api/](api/) | [openapi.yaml](api/openapi.yaml) |
+| **API (OpenAPI)** | [api/](api/) | [redocly.yaml](api/redocly.yaml) — многофайловый OpenAPI (домены: auth, slots, bookings, profile, instructors) |
 
 ## Дополнительно (подготовка к лекции)
 
@@ -25,5 +25,9 @@
 
 Бриф заказчика заполнен. Остальные файлы — **пустые шаблоны**, заполняются по ходу
 подготовки и на лекции. Шаблон ТЗ (`5-mobile-app-spec/`) ещё предстоит выстроить совместно.
+
+**API:** спецификация переведена на многофайловый формат OpenAPI (Redocly) —
+реестр доменов в [api/redocly.yaml](api/redocly.yaml); устаревший единый
+`api/openapi.yaml` больше не используется. Контракты доработаны по QA-ревью.
 
 > **Передача в День 2:** итоговые требования + модель данных + API-спецификация + ТЗ.

@@ -11,3 +11,8 @@ client/**/build/
 client/local.properties
 client/kotlin-js-store/
 client/java_pid*.hprof
+
+# Секреты доступа (токен Figma и пр.) — никогда не коммитим
+.env
+.env.*
+

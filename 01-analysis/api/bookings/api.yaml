@@ -29,16 +29,26 @@ paths:
       operationId: createBooking
       description: >-
         Запись на слот (SCR-004). seats_count 1..3, rental_count 0..seats_count.
-        Итоговая цена = price·seats_count + rental_price·rental_count. Операция
+        Итоговая цена (price_total) производна от тарифов слота:
+        slot.price·seats_count + slot.rental_price·rental_count (R-005). Операция
         атомарна.
+
+
+        Идемпотентность (R-022): заголовок Idempotency-Key обязателен. Повтор
+        запроса с тем же ключом и тем же телом возвращает идентичный ответ ранее
+        созданной брони (тот же 201), а не создаёт дубль. Повтор того же ключа с
+        другим телом → 409 (idempotency_key_conflict). Ключ хранится не менее 24 ч.
       parameters:
         - name: Idempotency-Key
           in: header
-          required: false
+          required: true
           schema:
             type: string
             format: uuid
-          description: Ключ идемпотентности для безопасного повтора при сетевом сбое (NFR-9).
+          description: >-
+            Обязательный ключ идемпотентности (UUID) для безопасного повтора при
+            сетевом сбое (NFR-9, R-022). Хранится ≥24 ч; повтор с тем же ключом и
+            телом → тот же ответ, с другим телом → 409.
       requestBody:
         required: true
         content:
@@ -51,7 +61,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: './models.yaml#/components/schemas/Booking'
+                $ref: './models.yaml#/components/schemas/CreateBookingResponse'
         '400':
           $ref: '../common/models.yaml#/components/responses/BadRequest'
         '401':
@@ -70,9 +80,12 @@ paths:
       summary: Мои брони
       operationId: listBookings
       description: >-
-        Список броней текущего клиента (SCR-005). Группировка
-        предстоящие/прошедшие — на клиенте по slot.start_at. Фильтр по статусу
-        опционален.
+        Список броней текущего клиента (SCR-005, R-025). Пагинация limit/offset.
+        Сортировка по slot.start_at по убыванию (ближайшие/последние сверху).
+        Фильтр по статусу (status) опционален и принимает несколько значений
+        (OR): без фильтра возвращаются брони всех статусов, включая отменённые
+        (cancelled) и поздно отменённые (late_cancel) — они остаются видимы в
+        истории. Группировка предстоящие/прошедшие — на клиенте по slot.start_at.
       parameters:
         - $ref: '../common/models.yaml#/components/parameters/BookingStatusParam'
         - $ref: '../common/models.yaml#/components/parameters/LimitParam'
