@@ -1,19 +1,17 @@
 package com.volna.app.auth.presentation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -21,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.volna.app.core.phone.formatPhoneNumber
 import com.volna.app.core.theme.VolnaTheme
@@ -114,36 +113,47 @@ private fun OtpStep(
     state: AuthState,
     onIntent: (AuthIntent) -> Unit,
 ) {
-    AuthStepLayout {
-        BackButton(onClick = { onIntent(AuthIntent.BackToPhone) })
-        AuthHeader(
-            title = "Подтверждение",
-            description = "Мы отправили код на ${formatPhoneNumber(state.phoneInput)}",
-        )
-        OtpCodeInput(
-            value = state.codeInput,
-            onValueChange = { onIntent(AuthIntent.CodeChanged(it)) },
-            fieldError = state.fieldError,
-        )
-        TextButton(
-            enabled = state.canResendCode,
-            onClick = { onIntent(AuthIntent.ResendCode) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = if (state.resendSecondsRemaining > 0) {
-                    "Отправить код повторно (00:${state.resendSecondsRemaining.toString().padStart(2, '0')})"
-                } else {
-                    "Отправить код повторно"
-                },
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    Box(modifier = Modifier.fillMaxSize()) {
+        AuthStepLayout {
+            AuthHeader(
+                title = "Подтверждение",
+                description = "Мы отправили код на ${formatPhoneNumber(state.phoneInput)}",
+            )
+            OtpCodeInput(
+                value = state.codeInput,
+                onValueChange = { onIntent(AuthIntent.CodeChanged(it)) },
+                fieldError = state.fieldError,
+            )
+            TextButton(
+                enabled = state.canResendCode,
+                onClick = { onIntent(AuthIntent.ResendCode) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = if (state.resendSecondsRemaining > 0) {
+                        "Отправить код повторно (00:${state.resendSecondsRemaining.toString().padStart(2, '0')})"
+                    } else {
+                        "Отправить код повторно"
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            SubmitButton(
+                text = "Подтвердить",
+                loading = state.isSubmitting,
+                enabled = state.canVerifyCode,
+                onClick = { onIntent(AuthIntent.VerifyCode) },
             )
         }
-        SubmitButton(
-            text = "Подтвердить",
-            loading = state.isSubmitting,
-            enabled = state.canVerifyCode,
-            onClick = { onIntent(AuthIntent.VerifyCode) },
+
+        BackButton(
+            onClick = { onIntent(AuthIntent.BackToPhone) },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(
+                    start = VolnaTheme.tokens.spacing.md,
+                    top = VolnaTheme.tokens.sizing.backButtonY,
+                ),
         )
     }
 }
@@ -398,16 +408,23 @@ private fun TermsText(text: String) {
 }
 
 @Composable
-private fun BackButton(onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.size(VolnaTheme.tokens.spacing.xl + VolnaTheme.tokens.spacing.xs),
+private fun BackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(40.dp)
+            .shadow(4.dp, RoundedCornerShape(200.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(200.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
     ) {
         VolnaIcon(
             imageVector = Icons.Back,
             contentDescription = "Назад",
             tint = MaterialTheme.colorScheme.primary,
-            size = VolnaTheme.tokens.spacing.lg,
+            size = 16.dp,
         )
     }
 }
