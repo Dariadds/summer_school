@@ -20,6 +20,7 @@ import com.volna.app.catalog.presentation.SlotDetailsStore
 import com.volna.app.catalog.presentation.SlotListStore
 import com.volna.app.core.config.AppConfig
 import com.volna.app.core.network.VolnaApiClient
+import com.volna.app.core.storage.PlatformKeyValueStorage
 import com.volna.app.core.storage.PlatformSessionStorage
 import com.volna.app.core.storage.SessionStorage
 import com.volna.app.core.time.AppClock
@@ -27,6 +28,13 @@ import com.volna.app.core.time.SystemAppClock
 import com.volna.app.profile.ProfileRepository
 import com.volna.app.profile.data.KtorProfileRepository
 import com.volna.app.profile.presentation.ProfileStore
+import com.volna.app.favorites.LocalFavoritesRepository
+import com.volna.app.favorites.FavoritesRepository
+import com.volna.app.favorites.presentation.FavoritesStore
+import com.volna.app.recent.LocalRecentRoutesRepository
+import com.volna.app.recent.RecentRoutesRepository
+import com.volna.app.ratings.LocalRatingsRepository
+import com.volna.app.ratings.RatingsRepository
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -52,12 +60,16 @@ val volnaAppModule = module {
     single<InstructorRepository> { KtorInstructorRepository(get()) }
     single<BookingRepository> { KtorBookingRepository(get()) }
     single<IdempotencyKeyFactory> { RandomIdempotencyKeyFactory() }
+    single<RatingsRepository> { LocalRatingsRepository() }
+    single<RecentRoutesRepository> { LocalRecentRoutesRepository() }
+    single<FavoritesRepository> { LocalFavoritesRepository() }
 
     viewModel { AuthStore(get(), get()) }
     viewModel { ProfileStore(get(), get()) }
-    viewModel { SlotListStore(get(), get()) }
-    viewModel { SlotDetailsStore(get()) }
+    viewModel { SlotListStore(get(), get(), get()) }
+    viewModel { SlotDetailsStore(get(), get(), get()) }
+    viewModel { FavoritesStore(get()) }
     viewModel { BookingFormStore(get(), get()) }
     viewModel { BookingListStore(get(), get()) }
-    viewModel { BookingDetailsStore(get(), get()) }
+    viewModel { BookingDetailsStore(get(), get(), get()) }
 }

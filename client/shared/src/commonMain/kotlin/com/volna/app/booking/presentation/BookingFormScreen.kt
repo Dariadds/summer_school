@@ -167,7 +167,7 @@ private fun BookingSlotSummaryCard(slot: Slot) {
                 modifier = Modifier.weight(1f, fill = false),
             )
             SlotTag(
-                text = "Инструктор: ${slot.instructor.name}",
+                text = "Маршал: ${slot.instructor.name}",
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.weight(1f, fill = false),
             )
@@ -252,7 +252,7 @@ private fun BookingBoardsSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm)) {
         Text(
-            text = "Доска для каждого места",
+            text = "Экипировка для каждого места",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -268,7 +268,7 @@ private fun BookingBoardsSection(
             )
         }
         Text(
-            text = "Прокатных выбрано: ${boardSelections.count { it == BoardSelection.Rental }} из $freeRentalBoards",
+            text = "Прокатной экипировки выбрано: ${boardSelections.count { it == BoardSelection.Rental }} из $freeRentalBoards",
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.labelMedium,
@@ -312,7 +312,7 @@ private fun BookingBoardRow(
                 onClick = onOwn,
             )
             BoardSegment(
-                text = "Прокатная",
+                text = "Прокат",
                 selected = rentalSelected,
                 enabled = rentalEnabled,
                 onClick = onRental,
@@ -492,7 +492,7 @@ private fun BookingSuccessSummaryCard(
                         modifier = Modifier.weight(1f, fill = false),
                     )
                     SlotTag(
-                        text = "Инструктор: ${it.instructor.name}",
+                        text = "Маршал: ${it.instructor.name}",
                         color = MaterialTheme.colorScheme.surface,
                         modifier = Modifier.weight(1f, fill = false),
                     )
@@ -509,7 +509,7 @@ private fun BookingSuccessSummaryCard(
                 verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
             ) {
                 DetailsInfoRow("Мест", booking.seatsCount.toString())
-                DetailsInfoRow("Доска в прокат", booking.rentalCount.toString())
+                DetailsInfoRow("Экипировка в прокат", booking.rentalCount.toString())
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {

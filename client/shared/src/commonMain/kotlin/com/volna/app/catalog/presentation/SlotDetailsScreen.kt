@@ -30,6 +30,7 @@ import com.volna.app.domain.model.SlotId
 import com.volna.app.domain.policy.AvailabilityPolicy
 import com.volna.app.map.RouteMapSheet
 import com.volna.app.uikit.icons.Back
+import com.volna.app.uikit.icons.Heart
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Share
 import com.volna.app.uikit.icons.VolnaIcon
@@ -41,6 +42,7 @@ fun SlotDetailsScreen(
     onIntent: (SlotDetailsIntent) -> Unit,
     onBack: () -> Unit,
     onBook: (Slot) -> Unit,
+    onToggleFavorite: () -> Unit,
 ) {
     LaunchedEffect(slotId) {
         onIntent(SlotDetailsIntent.Load(slotId))
@@ -50,19 +52,21 @@ fun SlotDetailsScreen(
             Loadable.Initial,
             Loadable.Loading -> {
                 BackButton(onBack)
-                ScreenTitle("Прогулка")
+                ScreenTitle("Заезд")
                 SkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
                 SkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
             }
             is Loadable.Content -> SlotDetailsContent(
                 slot = slot.value,
+                isFavorite = state.isFavorite,
                 onBack = onBack,
                 onBook = { onBook(slot.value) },
                 onOpenMap = { onIntent(SlotDetailsIntent.OpenRouteMap) },
+                onToggleFavorite = onToggleFavorite,
             )
             is Loadable.Empty -> StateMessage(
-                title = "Прогулка недоступна",
-                description = "Попробуйте выбрать другой слот",
+                title = "Заезд недоступен",
+                description = "Попробуйте выбрать другой заезд",
                 buttonText = "Назад",
                 onClick = onBack,
             )
@@ -88,9 +92,11 @@ fun SlotDetailsScreen(
 @Composable
 private fun SlotDetailsContent(
     slot: Slot,
+    isFavorite: Boolean,
     onBack: () -> Unit,
     onBook: () -> Unit,
     onOpenMap: () -> Unit,
+    onToggleFavorite: () -> Unit,
 ) {
     val availability = AvailabilityPolicy.availability(slot)
     Column(Modifier.fillMaxSize()) {
@@ -107,7 +113,17 @@ private fun SlotDetailsContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
-                CircleActionButton(icon = Icons.Share, contentDescription = "Поделиться", onClick = {})
+                CircleActionButton(
+                    icon = Icons.Heart,
+                    contentDescription = "Избранное",
+                    onClick = onToggleFavorite,
+                    tint = if (isFavorite) Color(0xFFE63946) else MaterialTheme.colorScheme.primary,
+                )
+                CircleActionButton(
+                    icon = Icons.Share,
+                    contentDescription = "Поделиться",
+                    onClick = {},
+                )
             }
         }
         SlotDetailsSheetContent(
@@ -163,6 +179,7 @@ private fun CircleActionButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
+    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
 ) {
     Box(
         modifier = Modifier
@@ -175,7 +192,7 @@ private fun CircleActionButton(
         VolnaIcon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = tint,
             size = 20.dp,
         )
     }
@@ -231,12 +248,12 @@ private fun SlotDetailsSheetContent(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Прогулка по маршруту «${slot.route.name}» займет ${slot.route.durationMin} минут и отлично подойдет ${slot.route.type.toDetailsAudienceText()}.",
+                    text = "Заезд по трассе «${slot.route.name}» займет ${slot.route.durationMin} минут и отлично подойдет ${slot.route.type.toDetailsAudienceText()}.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Инструктор: ${slot.instructor.name}",
+                    text = "Маршал: ${slot.instructor.name}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -258,7 +275,7 @@ private fun SlotDetailsSheetContent(
             ) {
                 DetailsInfoRow("Свободно мест", "${slot.freeSeats} из ${slot.totalSeats}")
                 DetailsInfoRow(
-                    "Прокатная доска (доступно ${availability.freeRentalBoards} шт.)",
+                    "Прокатная экипировка (доступно ${availability.freeRentalBoards} шт.)",
                     "${slot.rentalPrice.value} ₽",
                     boldValue = true
                 )

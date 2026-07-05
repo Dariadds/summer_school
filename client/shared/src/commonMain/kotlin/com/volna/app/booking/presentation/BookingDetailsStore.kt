@@ -14,20 +14,25 @@ import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Booking
 import com.volna.app.domain.model.BookingId
 import com.volna.app.domain.model.BookingStatus
+import com.volna.app.domain.model.InstructorRating
 import com.volna.app.domain.policy.CancellationKind
 import com.volna.app.domain.policy.CancellationPolicy
+import com.volna.app.ratings.RatingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 data class BookingDetailsState(
     val booking: Loadable<Booking> = Loadable.Initial,
     val cancelStatus: ActionStatus = ActionStatus.Idle,
     val showCancelConfirm: Boolean = false,
     val showRouteMap: Boolean = false,
+    val showRatingSheet: Boolean = false,
+    val hasRating: Boolean = false,
     val message: String? = null,
 ) {
     val currentBooking: Booking?
@@ -43,6 +48,9 @@ sealed interface BookingDetailsIntent {
     data object ConfirmCancel : BookingDetailsIntent
     data object OpenRouteMap : BookingDetailsIntent
     data object DismissRouteMap : BookingDetailsIntent
+    data object ShowRatingSheet : BookingDetailsIntent
+    data object DismissRatingSheet : BookingDetailsIntent
+    data class SubmitRating(val rating: Int, val comment: String?) : BookingDetailsIntent
     data object MessageShown : BookingDetailsIntent
     data object Reset : BookingDetailsIntent
 }
@@ -56,6 +64,7 @@ sealed interface BookingDetailsEffect {
 class BookingDetailsStore(
     private val bookingRepository: BookingRepository,
     private val clock: AppClock,
+    private val ratingsRepository: RatingsRepository,
     scope: CoroutineScope? = null,
 ) : ViewModel(), MviStore<BookingDetailsState, BookingDetailsIntent, BookingDetailsEffect> {
     private val mutableState = MutableStateFlow(BookingDetailsState())
@@ -76,6 +85,9 @@ class BookingDetailsStore(
             BookingDetailsIntent.ConfirmCancel -> cancel()
             BookingDetailsIntent.OpenRouteMap -> mutableState.update { it.copy(showRouteMap = true) }
             BookingDetailsIntent.DismissRouteMap -> mutableState.update { it.copy(showRouteMap = false) }
+            BookingDetailsIntent.ShowRatingSheet -> mutableState.update { it.copy(showRatingSheet = true) }
+            BookingDetailsIntent.DismissRatingSheet -> mutableState.update { it.copy(showRatingSheet = false) }
+            is BookingDetailsIntent.SubmitRating -> submitRating(intent.rating, intent.comment)
             BookingDetailsIntent.MessageShown -> mutableState.update { it.copy(message = null) }
             BookingDetailsIntent.Reset -> {
                 lastBookingId = null
@@ -102,10 +114,45 @@ class BookingDetailsStore(
             bookingRepository.getBooking(bookingId).fold(
                 onSuccess = { booking ->
                     mutableState.update { it.copy(booking = Loadable.Content(booking)) }
+                    storeScope.launch {
+                        try {
+                            val rating = ratingsRepository.getRatingForBooking(booking.id.value)
+                            if (rating != null) {
+                                mutableState.update { it.copy(hasRating = true) }
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.e(e, "Failed to load rating for booking")
+                        }
+                    }
                 },
                 onFailure = { failure ->
                     AppLogger.e(failure, "Failed to load booking details")
                     handleFailure(failure.asAppFailure(), contentFallback = null)
+                },
+            )
+        }
+    }
+
+    private fun submitRating(rating: Int, comment: String?) {
+        val booking = mutableState.value.currentBooking ?: return
+        val instructorId = booking.slot?.instructor?.id ?: return
+        if (mutableState.value.hasRating) return
+
+        storeScope.launch {
+            val model = InstructorRating(
+                bookingId = booking.id.value,
+                instructorId = instructorId.value,
+                rating = rating,
+                comment = comment,
+                createdAt = Clock.System.now().toEpochMilliseconds(),
+            )
+            ratingsRepository.submitRating(model).fold(
+                onSuccess = {
+                    mutableState.update { it.copy(hasRating = true, showRatingSheet = false, message = "Оценка отправлена") }
+                },
+                onFailure = { err ->
+                    AppLogger.e(err, "Failed to submit rating")
+                    mutableState.update { it.copy(message = "Не удалось отправить оценку") }
                 },
             )
         }

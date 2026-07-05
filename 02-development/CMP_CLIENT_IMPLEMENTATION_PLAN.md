@@ -26,7 +26,7 @@ MVP-клиент покрывает только роль клиента:
 - `SCR-005` мои бронирования.
 - `SCR-006` детали брони и отмена.
 - `BS-003` подтверждение отмены.
-- `BS-004` карта маршрута.
+- `BS-004` карта трассы.
 - `SCR-007` профиль, выход, операции профиля.
 
 Клиент не должен реализовывать instructor/admin UI, schedule CRUD, создание/редактирование слотов, онлайн-оплату, отзывы, loyalty, no-show и auto-weather cancellation.
@@ -34,7 +34,7 @@ MVP-клиент покрывает только роль клиента:
 Сквозные логики, которые должны стать отдельными domain/application сервисами или pure-функциями:
 
 - `LOGIC-001` OTP-авторизация и сессия.
-- `LOGIC-002` доступность: `min(free_seats, route.capacity_cap, 3)` плюс проверка `free_rental_boards`.
+- `LOGIC-002` доступность: `min(free_seats, route.capacity_cap, 3)` плюс проверка доступности прокатной экипировки.
 - `LOGIC-003` цена: `price * seats_count + rental_price * rental_count`.
 - `LOGIC-004` отмена: `>= 2h` ранняя, `< 2h` поздняя, после старта отмена недоступна.
 - `LOGIC-005` фильтры слотов: OR внутри группы, AND между группами.
@@ -71,9 +71,9 @@ BE важные особенности для клиента:
 - `verifyAuthCode` возвращает `token`, `client`, `is_new`; при `is_new=true` нужно выполнить `updateProfile`.
 - `createBooking` принимает опциональный `Idempotency-Key` UUID. Клиент должен генерировать и удерживать ключ на время retry одного и того же payload.
 - Ошибки приходят в формате `{ code, message, details? }`; для action errors UI показывает snackbar с `message`.
-- `slot_full` может содержать `details.available_seats` и `details.available_rental_boards`; UI должен обновлять форму и подсказывать уменьшить места/прокат.
+- `slot_full` может содержать `details.available_seats` и `details.available_rental_boards`; UI должен обновлять форму и подсказывать уменьшить число мест или отказаться от прокатной экипировки.
 - В текущем OpenAPI и BE `Booking`/`BookingSummary` возвращают `price_total`. Это расходится с `LOGIC-003`, где сказано, что API его не возвращает. Клиентское решение: в форме `SCR-004` считать цену локально до отправки, для уже созданных броней предпочитать серверный `price_total`, а при его отсутствии считать fallback-формулой.
-- OpenAPI `Route.geometry` есть, миграции содержат `routes.geometry`, но текущие BE-мапперы `catalog.go` и `bookings.go` не возвращают `geometry`. Для `LOGIC-006` клиент должен иметь фолбэк "пин + текст", а BE gap нужно закрыть отдельно, если линия маршрута обязательна для MVP.
+- OpenAPI `Route.geometry` есть, миграции содержат `routes.geometry`, но текущие BE-мапперы `catalog.go` и `bookings.go` не возвращают `geometry`. Для `LOGIC-006` клиент должен иметь фолбэк "пин + текст", а BE gap нужно закрыть отдельно, если линия трассы обязательна для MVP.
 
 ## Целевая структура проекта
 
@@ -351,7 +351,7 @@ State:
 
 - slot content.
 - seatsCount 1..3 and not above available max.
-- board choice per seat, derived rentalCount.
+- equipment choice per seat, derived rentalCount.
 - computed total price.
 - actionStatus.
 
@@ -364,8 +364,8 @@ Use cases:
 
 Client rules:
 
-- Do not hardcode route caps or board count.
-- Own board consumes group seat, not rental board.
+- Do not hardcode route caps or rental-equipment count.
+- Own equipment consumes a group seat, not a rental slot.
 - On `slot_full`, use `details` to update max and show contextual message.
 - On success, update local slot availability opportunistically or invalidate slot/list caches.
 

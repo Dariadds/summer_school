@@ -34,6 +34,7 @@ fun ProfileScreen(
     state: ProfileState,
     appConfig: AppConfig,
     onIntent: (ProfileIntent) -> Unit,
+    onFavoritesClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -86,6 +87,7 @@ fun ProfileScreen(
                     phone = profile.value.phone.value,
                     onOpenExternalUrl = openExternalUrl,
                     onIntent = onIntent,
+                    onFavoritesClick = onFavoritesClick,
                 )
                 is Loadable.Error -> ProfileError(onRetry = { onIntent(ProfileIntent.Load) })
                 is Loadable.Empty -> ProfileError(onRetry = { onIntent(ProfileIntent.Load) })
@@ -121,6 +123,7 @@ private fun ProfileContent(
     phone: String,
     onOpenExternalUrl: (String) -> Unit,
     onIntent: (ProfileIntent) -> Unit,
+    onFavoritesClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -137,6 +140,7 @@ private fun ProfileContent(
                 phone = phone,
                 onOpenExternalUrl = onOpenExternalUrl,
                 onIntent = onIntent,
+                onFavoritesClick = onFavoritesClick,
             )
             ProfileMode.Edit -> ProfileEditContent(
                 state = state,
@@ -158,6 +162,7 @@ private fun ProfileViewContent(
     phone: String,
     onOpenExternalUrl: (String) -> Unit,
     onIntent: (ProfileIntent) -> Unit,
+    onFavoritesClick: () -> Unit,
 ) {
     ProfileInfoRow(
         label = null,
@@ -174,6 +179,11 @@ private fun ProfileViewContent(
     ProfileLinks(
         appConfig = appConfig,
         onOpenExternalUrl = onOpenExternalUrl,
+    )
+    InfoLine(
+        label = "Избранное",
+        value = null,
+        onClick = onFavoritesClick,
     )
     ProfileLogoutButton(state = state, onIntent = onIntent)
 }

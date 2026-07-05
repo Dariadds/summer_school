@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Instructor
+import com.volna.app.domain.model.RecentRoute
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
 import com.volna.app.uikit.icons.Icons
@@ -31,13 +33,14 @@ fun SlotListScreen(
     state: SlotListState,
     onIntent: (SlotListIntent) -> Unit,
     onSlotClick: (Slot) -> Unit,
+    onRecentRouteClick: (String) -> Unit,
 ) {
     LaunchedEffect(Unit) {
         onIntent(SlotListIntent.Load)
     }
     Column(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            ScreenTitle("Прогулки")
+            ScreenTitle("Заезды")
             VolnaIcon(
                 imageVector = Icons.Tune,
                 contentDescription = "Фильтры",
@@ -47,6 +50,12 @@ fun SlotListScreen(
                     .clickable { onIntent(SlotListIntent.OpenFilters) },
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 size = VolnaTheme.tokens.spacing.xl,
+            )
+        }
+        if (state.recentRoutes.isNotEmpty()) {
+            RecentRoutesSection(
+                recentRoutes = state.recentRoutes,
+                onRecentRouteClick = onRecentRouteClick,
             )
         }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -64,7 +73,7 @@ fun SlotListScreen(
                     )
                 } else {
                     StateMessage(
-                        title = "Пока нет доступных прогулок",
+                        title = "Пока нет доступных заездов",
                         description = "Загляните позже",
                     )
                 }
@@ -171,7 +180,7 @@ private fun SlotFiltersSheet(
                     DateRangePreviewRow(state)
                 }
 
-                FilterGroup(title = "Тип маршрута") {
+                FilterGroup(title = "Тип трассы") {
                     FilterChipRow {
                         FilterChipButton("Новичковый", RouteType.Novice in state.draftFilters.routeTypes) {
                             onIntent(SlotListIntent.ToggleRouteType(RouteType.Novice))
@@ -333,17 +342,17 @@ private fun InstructorFilterSection(
 ) {
     when (instructors) {
         Loadable.Initial,
-        Loadable.Loading -> FilterGroup("Инструктор") {
-            Text("Загружаем инструкторов", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Loadable.Loading -> FilterGroup("Маршал") {
+            Text("Загружаем маршалов", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         is Loadable.Empty -> Unit
-        is Loadable.Error -> FilterGroup("Инструктор") {
-            Text("Не удалось загрузить инструкторов", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        is Loadable.Error -> FilterGroup("Маршал") {
+            Text("Не удалось загрузить маршалов", color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = onRetry) {
                 Text("Обновить")
             }
         }
-        is Loadable.Content -> FilterGroup("Инструктор") {
+        is Loadable.Content -> FilterGroup("Маршал") {
             Column(verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.xs)) {
                 instructors.value.chunked(2).forEach { row ->
                     FilterChipRow {
@@ -450,7 +459,7 @@ private fun SlotCard(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
             Text(
-                text = "Инструктор: ${slot.instructor.name}",
+                text = "Маршал: ${slot.instructor.name}",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
@@ -516,6 +525,82 @@ private fun SlotPreviewPhoto() {
                     ),
                     shape = RoundedCornerShape(VolnaTheme.tokens.radius.lg),
                 ),
+        )
+    }
+}
+
+@Composable
+private fun RecentRoutesSection(
+    recentRoutes: List<RecentRoute>,
+    onRecentRouteClick: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = VolnaTheme.tokens.spacing.md,
+                end = VolnaTheme.tokens.spacing.md,
+                top = VolnaTheme.tokens.spacing.md,
+                bottom = VolnaTheme.tokens.spacing.sm,
+            ),
+        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+    ) {
+        Text(
+            text = "Недавние",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        ) {
+            items(recentRoutes, key = { it.slotId }) { route ->
+                RecentRouteCard(route, onRecentRouteClick)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentRouteCard(
+    route: RecentRoute,
+    onClick: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .width(240.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(16.dp),
+            )
+            .clickable { onClick(route.slotId) }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = route.routeName,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = route.routeDescription,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "Маршал: ${route.instructorName}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "${route.price} ₽",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
         )
     }
 }

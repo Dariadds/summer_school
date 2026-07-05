@@ -16,6 +16,7 @@ class MainActivity : ComponentActivity() {
             Timber.plant(Timber.DebugTree())
         }
         PlatformSessionStorage.initialize(applicationContext)
+        com.volna.app.core.storage.PlatformKeyValueStorage.initialize(applicationContext)
         PlatformMapLauncher.initialize(applicationContext)
         initKoin()
         setContent {

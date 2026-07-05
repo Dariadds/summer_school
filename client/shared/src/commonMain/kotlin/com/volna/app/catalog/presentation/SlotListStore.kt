@@ -14,8 +14,11 @@ import com.volna.app.core.ui.EmptyReason
 import com.volna.app.core.ui.Loadable
 import com.volna.app.domain.model.Instructor
 import com.volna.app.domain.model.InstructorId
+import com.volna.app.domain.model.RecentRoute
 import com.volna.app.domain.model.RouteType
 import com.volna.app.domain.model.Slot
+import com.volna.app.recent.RecentRoutesRepository
+import kotlinx.datetime.Clock
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
@@ -31,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Clock
 
 data class SlotListState(
+    val recentRoutes: List<RecentRoute> = emptyList(),
     val slots: Loadable<List<Slot>> = Loadable.Initial,
     val filters: SlotFilters = SlotFilters(),
     val datePreset: SlotDatePreset = SlotDatePreset.Any,
@@ -49,6 +53,7 @@ enum class SlotDatePreset {
 
 sealed interface SlotListIntent {
     data object Load : SlotListIntent
+    data object LoadRecentRoutes : SlotListIntent
     data object Retry : SlotListIntent
     data object OpenFilters : SlotListIntent
     data object CloseFilters : SlotListIntent
@@ -70,6 +75,7 @@ sealed interface SlotListEffect {
 class SlotListStore(
     private val slotRepository: SlotRepository,
     private val instructorRepository: InstructorRepository,
+    private val recentRoutesRepository: RecentRoutesRepository,
     scope: CoroutineScope? = null,
 ) : ViewModel(), MviStore<SlotListState, SlotListIntent, SlotListEffect> {
     private val mutableState = MutableStateFlow(SlotListState())
@@ -80,7 +86,11 @@ class SlotListStore(
 
     override fun accept(intent: SlotListIntent) {
         when (intent) {
-            SlotListIntent.Load -> load()
+            SlotListIntent.Load -> {
+                load()
+                loadRecentRoutes()
+            }
+            SlotListIntent.LoadRecentRoutes -> loadRecentRoutes()
             SlotListIntent.Retry -> load()
             SlotListIntent.OpenFilters -> openFilters()
             SlotListIntent.CloseFilters -> mutableState.update { it.copy(filtersVisible = false) }
@@ -214,6 +224,19 @@ class SlotListStore(
                 draftFilters = state.draftFilters.copy(
                     instructorIds = state.draftFilters.instructorIds.toggle(instructorId),
                 ),
+            )
+        }
+    }
+
+    private fun loadRecentRoutes() {
+        storeScope.launch {
+            recentRoutesRepository.getRecentRoutes(limit = 3).fold(
+                onSuccess = { recentRoutes ->
+                    mutableState.update { it.copy(recentRoutes = recentRoutes) }
+                },
+                onFailure = {
+                    // Ignore recent route load failures as non-critical UI state.
+                },
             )
         }
     }

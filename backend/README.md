@@ -1,6 +1,6 @@
 # Backend API
 
-Go REST API for the Volna SUP club client app. The implementation follows the OpenAPI contracts from `../01-analysis/api` and keeps client-visible resources in MVP scope only.
+Go REST API for the karting-center client app. The implementation follows the OpenAPI contracts from `../01-analysis/api` and keeps client-visible resources in MVP scope only.
 
 ## Requirements
 

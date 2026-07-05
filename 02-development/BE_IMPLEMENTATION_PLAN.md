@@ -8,7 +8,7 @@
 - [x] [BE-03. Спроектировать БД и миграции](#be-03-спроектировать-бд-и-миграции)
 - [x] [BE-04. Реализовать Auth: OTP и сессии](#be-04-реализовать-auth-otp-и-сессии)
 - [x] [BE-05. Реализовать Profile](#be-05-реализовать-profile)
-- [x] [BE-06. Реализовать read-only каталог слотов и инструкторов](#be-06-реализовать-read-only-каталог-слотов-и-инструкторов)
+- [x] [BE-06. Реализовать read-only каталог слотов и маршалов](#be-06-реализовать-read-only-каталог-слотов-и-маршалов)
 - [x] [BE-07. Реализовать атомарное создание брони](#be-07-реализовать-атомарное-создание-брони)
 - [x] [BE-08. Реализовать список и детали броней](#be-08-реализовать-список-и-детали-броней)
 - [x] [BE-09. Реализовать отмену брони](#be-09-реализовать-отмену-брони)
@@ -44,7 +44,7 @@
 | Profile | `confirmPhoneChange` | `POST /profile/phone/confirm` | Подтверждение нового телефона |
 | Slots | `listSlots` | `GET /slots` | Список слотов с фильтрами и пагинацией |
 | Slots | `getSlot` | `GET /slots/{slotId}` | Карточка слота |
-| Instructors | `listInstructors` | `GET /instructors` | Read-only справочник инструкторов |
+| Instructors | `listInstructors` | `GET /instructors` | Read-only справочник маршалов |
 | Bookings | `createBooking` | `POST /bookings` | Атомарное создание брони, `Idempotency-Key` |
 | Bookings | `listBookings` | `GET /bookings` | Список броней текущего клиента |
 | Bookings | `getBooking` | `GET /bookings/{bookingId}` | Детали своей брони |
@@ -100,7 +100,7 @@
 - Таблицы `clients`, `auth_sessions`, `otp_codes`, `routes`, `instructors`, `slots`, `bookings`, `idempotency_keys`.
 - `routes`, `instructors`, `slots` сделать read-only для клиентского API; данные для dev/test загружать seed-миграцией или fixtures.
 - Для `bookings` сохранить `status in (active,cancelled,late_cancel)`, `seats_count`, `rental_count`, `created_at`, `cancelled_at`.
-- Для `slots` хранить данные, достаточные для атомарного расчёта `free_seats` и `free_rental_boards`; не полагаться на FE для лимитов.
+- Для `slots` хранить данные, достаточные для атомарного расчёта свободных мест и доступной прокатной экипировки; не полагаться на FE для лимитов.
 - Добавить индексы по `phone`, `slot_id`, `client_id`, `start_at`, `status`, idempotency key.
 
 Готово, когда:
@@ -132,12 +132,12 @@
 - Tests проверяют доступ только к своему профилю, конфликт телефона и смену телефона по OTP.
 - Удалённый аккаунт не может использовать старый token.
 
-### BE-06. Реализовать read-only каталог слотов и инструкторов
+### BE-06. Реализовать read-only каталог слотов и маршалов
 
 Сделать:
 - `GET /slots`: фильтры `date_from`, `date_to`, `route_type[]`, `instructor_id[]`, `only_available`, `limit`, `offset`; сортировка по `start_at ASC`.
-- `GET /slots/{slotId}`: вернуть слот с route geometry, meeting point, instructor, prices, availability.
-- `GET /instructors`: справочник инструкторов с пагинацией.
+- `GET /slots/{slotId}`: вернуть слот с трассой, местом сбора, маршалом, ценами и доступностью.
+- `GET /instructors`: справочник маршалов с пагинацией.
 - Для `only_available=false` показывать слоты без мест с корректным `free_seats=0`; не скрывать их на сервере без параметра.
 
 Готово, когда:
@@ -149,13 +149,13 @@
 Сделать:
 - `POST /bookings` принимать `Idempotency-Key` и сохранять результат для безопасного retry.
 - Валидировать `seats_count` в диапазоне `1..3` и `rental_count` в диапазоне `0..seats_count`.
-- В транзакции заблокировать слот, проверить `status=scheduled`, `start_at` в будущем, свободные места и прокатные доски.
+- В транзакции заблокировать слот, проверить `status=scheduled`, `start_at` в будущем, свободные места и доступность прокатной экипировки.
 - Предотвратить double booking текущего клиента на тот же слот согласно NFR-8.
 - Уменьшать доступность слота только после успешного создания брони.
 - Возвращать `409 slot_full`/`double_booking`, `410 slot_cancelled`, `422 slot_started` с `details.available_*`, где применимо.
 
 Готово, когда:
-- Concurrency test с параллельными `createBooking` не допускает `free_seats < 0` и `free_rental_boards < 0`.
+- Concurrency test с параллельными `createBooking` не допускает отрицательное число свободных мест или доступной прокатной экипировки.
 - Повтор с тем же `Idempotency-Key` возвращает тот же результат без второй брони.
 - Сетевой retry сценарий из UC-1 E4 покрыт тестом.
 
@@ -175,8 +175,8 @@
 Сделать:
 - `POST /bookings/{bookingId}/cancel`: в транзакции заблокировать booking и slot.
 - Отмена доступна только до `slot.start_at`.
-- Если до старта `>= 2h`, статус `cancelled`, места и прокатные доски возвращаются.
-- Если до старта `< 2h`, статус `late_cancel`, места и прокатные доски не возвращаются.
+- Если до старта `>= 2h`, статус `cancelled`, места и прокатная экипировка возвращаются.
+- Если до старта `< 2h`, статус `late_cancel`, места и прокатная экипировка не возвращаются.
 - Ровно `2h` считать ранней отменой.
 - Повторную отмену возвращать как контрактную ошибку `409 already_cancelled`.
 

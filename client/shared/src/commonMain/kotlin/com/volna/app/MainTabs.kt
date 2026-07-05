@@ -45,10 +45,14 @@ import com.volna.app.core.config.AppConfig
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.time.AppClock
 import com.volna.app.core.ui.Loadable
+import com.volna.app.favorites.presentation.FavoritesIntent
+import com.volna.app.favorites.presentation.FavoritesScreen
+import com.volna.app.favorites.presentation.FavoritesState
 import com.volna.app.profile.presentation.ProfileIntent
 import com.volna.app.profile.presentation.ProfileScreen
 import com.volna.app.profile.presentation.ProfileState
 import com.volna.app.uikit.icons.Calendar
+import com.volna.app.uikit.icons.Heart
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Options
 import com.volna.app.uikit.icons.Profile
@@ -76,6 +80,11 @@ internal fun MainTabs(
     appConfig: AppConfig,
     profileState: ProfileState,
     onProfileIntent: (ProfileIntent) -> Unit,
+    favoritesState: FavoritesState,
+    onFavoritesIntent: (FavoritesIntent) -> Unit,
+    onFavoritesRouteClick: (String) -> Unit,
+    onFavoritesBack: () -> Unit,
+    onProfileFavoritesClick: () -> Unit,
 ) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -110,6 +119,9 @@ internal fun MainTabs(
                         onSlotClick = { slot ->
                             navController.navigate(SlotDetailsDestination(slot.id.value))
                         },
+                        onRecentRouteClick = { slotId ->
+                            navController.navigate(SlotDetailsDestination(slotId))
+                        },
                     )
                 }
 
@@ -121,6 +133,7 @@ internal fun MainTabs(
                         onIntent = onSlotDetailsIntent,
                         onBack = { navController.popBackStack() },
                         onBook = { slot -> navController.navigate(SlotBookingDestination(slot.id.value)) },
+                        onToggleFavorite = { onSlotDetailsIntent(SlotDetailsIntent.ToggleFavorite) },
                     )
                 }
 
@@ -135,6 +148,7 @@ internal fun MainTabs(
                             onIntent = onSlotDetailsIntent,
                             onBack = { navController.popBackStack() },
                             onBook = { slot -> navController.navigate(SlotBookingDestination(slot.id.value)) },
+                            onToggleFavorite = { onSlotDetailsIntent(SlotDetailsIntent.ToggleFavorite) },
                         )
                     } else {
                         BookingFormScreen(
@@ -193,11 +207,21 @@ internal fun MainTabs(
                     )
                 }
 
+                composable<FavoritesDestination> {
+                    FavoritesScreen(
+                        state = favoritesState,
+                        onIntent = onFavoritesIntent,
+                        onBack = onFavoritesBack,
+                        onSlotClick = onFavoritesRouteClick,
+                    )
+                }
+
                 composable<ProfileDestination> {
                     ProfileScreen(
                         state = profileState,
                         appConfig = appConfig,
                         onIntent = onProfileIntent,
+                        onFavoritesClick = onProfileFavoritesClick,
                     )
                 }
             }
@@ -254,6 +278,7 @@ private fun isNavBarVisible(
 private fun NavDestination?.mainTab(): MainTab = when {
     this?.hasRoute<BookingsDestination>() == true -> MainTab.Bookings
     this?.hasRoute<BookingDetailsDestination>() == true -> MainTab.Bookings
+    this?.hasRoute<FavoritesDestination>() == true -> MainTab.Profile
     this?.hasRoute<ProfileDestination>() == true -> MainTab.Profile
     else -> MainTab.Slots
 }

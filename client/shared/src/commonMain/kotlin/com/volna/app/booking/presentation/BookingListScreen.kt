@@ -264,7 +264,7 @@ private fun BookingCard(
             )
         }
         Text(
-            text = "Инструктор: ${slot?.instructor?.name ?: "уточняется"}",
+            text = "Маршал: ${slot?.instructor?.name ?: "уточняется"}",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -275,7 +275,7 @@ private fun BookingCard(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
             Text(
-                text = "${booking.seatsCount} ${booking.seatsCount.pluralPlaces()} · ${booking.rentalCount} ${booking.rentalCount.pluralRentalBoards()}",
+                text = "${booking.seatsCount} ${booking.seatsCount.pluralPlaces()} · ${booking.rentalCount} ${booking.rentalCount.pluralRentalEquipment()}",
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,

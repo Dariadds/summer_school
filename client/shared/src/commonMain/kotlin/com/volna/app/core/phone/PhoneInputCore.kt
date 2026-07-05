@@ -7,7 +7,7 @@ fun sanitizePhoneInput(
     maxDigits: Int = DEFAULT_MAX_PHONE_DIGITS,
 ): String {
     val digits = input.filter(Char::isDigit)
-    if (digits.length >= 11 && digits.startsWith("7")) {
+    if (digits.length >= 11 && (digits.startsWith("7") || digits.startsWith("8"))) {
         val withoutPrefix = digits.drop(1)
         return if (maxDigits > 0) withoutPrefix.take(maxDigits) else withoutPrefix
     }

@@ -6,6 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -25,6 +27,8 @@ import com.volna.app.map.RouteMapSheet
 import com.volna.app.uikit.icons.Icons
 import com.volna.app.uikit.icons.Info
 import com.volna.app.uikit.icons.VolnaIcon
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 // CMP-12 / SCR-006 / BS-003: booking details with explicit cancel confirmation.
 @Composable
@@ -92,6 +96,15 @@ fun BookingDetailsScreen(
                     )
                 }
             }
+            if (state.showRatingSheet) {
+                state.currentBooking?.slot?.let { slot ->
+                    RatingModalSheet(
+                        instructorName = slot.instructor.name,
+                        onSubmit = { rating, comment -> onIntent(BookingDetailsIntent.SubmitRating(rating, comment)) },
+                        onClose = { onIntent(BookingDetailsIntent.DismissRatingSheet) },
+                    )
+                }
+            }
         }
     }
 }
@@ -148,6 +161,18 @@ private fun BookingDetailsContent(
         ) {
             Text(if (canCancel) "Отменить" else "Отмена недоступна")
         }
+        val slotStart = booking.slot?.startAt
+        if (slotStart != null && slotStart < clock.now() && !state.hasRating) {
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = { onIntent(BookingDetailsIntent.ShowRatingSheet) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(VolnaTheme.tokens.sizing.buttonHeight)
+            ) {
+                Text("Оценить маршала")
+            }
+        }
         Box(
             modifier = Modifier
                 .width(138.dp)
@@ -200,10 +225,98 @@ private fun BookingDetailsEventCard(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "Инструктор: ${slot?.instructor?.name ?: "уточняется"}",
+            text = "Маршал: ${slot?.instructor?.name ?: "уточняется"}",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RatingModalSheet(
+    instructorName: String,
+    initialRating: Int = 5,
+    initialComment: String? = null,
+    onSubmit: (Int, String?) -> Unit,
+    onClose: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onClose,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(
+            topStart = VolnaTheme.tokens.radius.lg,
+            topEnd = VolnaTheme.tokens.radius.lg,
+        ),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = VolnaTheme.tokens.spacing.xs)
+                    .size(width = 40.dp, height = 4.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                    ),
+            )
+        },
+    ) {
+        RatingSheetContent(
+            instructorName = instructorName,
+            initialRating = initialRating,
+            initialComment = initialComment,
+            onSubmit = onSubmit,
+            onClose = onClose,
+        )
+    }
+}
+
+@Composable
+private fun RatingSheetContent(
+    instructorName: String,
+    initialRating: Int = 5,
+    initialComment: String? = null,
+    onSubmit: (Int, String?) -> Unit,
+    onClose: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(initialRating) }
+    var comment by remember { mutableStateOf(initialComment ?: "") }
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(text = "Оценить маршала", style = MaterialTheme.typography.titleMedium)
+        Text(text = instructorName, style = MaterialTheme.typography.bodyMedium)
+
+        Row(modifier = Modifier.padding(vertical = 12.dp)) {
+            for (i in 1..5) {
+                IconButton(onClick = { selected = i }) {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Info,
+                        contentDescription = null,
+                        tint = if (i <= selected) Color(0xFFFFC107) else Color(0xFFBDBDBD),
+                    )
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = comment,
+            onValueChange = { comment = it },
+            label = { Text("Комментарий (необязательно)") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { onSubmit(selected, comment) }, modifier = Modifier.weight(1f)) {
+                Text("Отправить")
+            }
+            TextButton(onClick = onClose) {
+                Text("Отмена")
+            }
+        }
     }
 }
 
@@ -376,10 +489,10 @@ private fun CancelConfirmSheet(
 ) {
     val kind = state.cancellationKind(clock)
     val messageText = when (kind) {
-        CancellationKind.Early -> "До старта больше 2 часов. Запись будет отменена, места и прокатные доски снова станут доступны."
+        CancellationKind.Early -> "До старта больше 2 часов. Запись будет отменена, места и прокатная экипировка снова станут доступны."
         CancellationKind.Late -> "До старта осталось менее 2 часов. Запись будет отменена. Штраф за позднюю отмену не взимается."
         CancellationKind.UnavailableAfterStart,
-        null -> "Прогулка уже началась. Отмена записи недоступна."
+        null -> "Заезд уже начался. Отмена записи недоступна."
     }
     val cancellationLabel = when (kind) {
         CancellationKind.Early -> "Ранняя отмена"
@@ -388,7 +501,7 @@ private fun CancelConfirmSheet(
         null -> "Отмена недоступна"
     }
     val cancellationHint = when (kind) {
-        CancellationKind.Early -> "Места и прокатные доски освободятся."
+        CancellationKind.Early -> "Места и прокатная экипировка освободятся."
         CancellationKind.Late -> "Ваша запись отменена. Штраф не взимается."
         CancellationKind.UnavailableAfterStart,
         null -> "Запись останется активной."

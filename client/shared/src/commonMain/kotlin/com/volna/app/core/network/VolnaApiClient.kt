@@ -14,7 +14,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.io.IOException
+import io.ktor.utils.io.errors.IOException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 

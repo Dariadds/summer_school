@@ -22,6 +22,8 @@ import com.volna.app.core.navigation.BindBrowserNavigation
 import com.volna.app.core.navigation.BindSystemBack
 import com.volna.app.core.theme.VolnaTheme
 import com.volna.app.core.time.AppClock
+import com.volna.app.favorites.presentation.FavoritesIntent
+import com.volna.app.favorites.presentation.FavoritesStore
 import com.volna.app.profile.presentation.ProfileEffect
 import com.volna.app.profile.presentation.ProfileIntent
 import com.volna.app.profile.presentation.ProfileMode
@@ -47,6 +49,7 @@ fun VolnaApp() {
         val profileStore = koinViewModel<ProfileStore>()
         val slotListStore = koinViewModel<SlotListStore>()
         val slotDetailsStore = koinViewModel<SlotDetailsStore>()
+        val favoritesStore = koinViewModel<FavoritesStore>()
         val bookingFormStore = koinViewModel<BookingFormStore>()
         val bookingListStore = koinViewModel<BookingListStore>()
         val bookingDetailsStore = koinViewModel<BookingDetailsStore>()
@@ -54,6 +57,7 @@ fun VolnaApp() {
         val profileState by profileStore.state.collectAsState()
         val slotListState by slotListStore.state.collectAsState()
         val slotDetailsState by slotDetailsStore.state.collectAsState()
+        val favoritesState by favoritesStore.state.collectAsState()
         val bookingFormState by bookingFormStore.state.collectAsState()
         val bookingListState by bookingListStore.state.collectAsState()
         val bookingDetailsState by bookingDetailsStore.state.collectAsState()
@@ -69,6 +73,7 @@ fun VolnaApp() {
             profileStore.accept(ProfileIntent.Reset)
             slotListStore.accept(SlotListIntent.Reset)
             slotDetailsStore.accept(SlotDetailsIntent.Reset)
+            favoritesStore.accept(FavoritesIntent.Reset)
             bookingFormStore.accept(BookingFormIntent.Reset)
             bookingListStore.accept(BookingListIntent.Reset)
             bookingDetailsStore.accept(BookingDetailsIntent.Reset)
@@ -308,6 +313,15 @@ fun VolnaApp() {
                 appConfig = appConfig,
                 profileState = profileState,
                 onProfileIntent = profileStore::accept,
+                favoritesState = favoritesState,
+                onFavoritesIntent = favoritesStore::accept,
+                onFavoritesRouteClick = { slotId ->
+                    navController.navigate(SlotDetailsDestination(slotId))
+                },
+                onFavoritesBack = { navController.popBackStack() },
+                onProfileFavoritesClick = {
+                    navController.navigate(FavoritesDestination)
+                },
             )
             if (rootState == RootState.CheckingSession) {
                 SessionSplash()

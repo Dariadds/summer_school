@@ -44,6 +44,10 @@ internal data class BookingDetailsDestination(val bookingId: String)
 @SerialName("profile")
 internal data object ProfileDestination
 
+@Serializable
+@SerialName("favorites")
+internal data object FavoritesDestination
+
 internal fun SlotDetailsDestination.slotId(): SlotId = SlotId(slotId)
 
 internal fun SlotBookingDestination.slotId(): SlotId = SlotId(slotId)
