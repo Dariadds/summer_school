@@ -1,6 +1,6 @@
 # Фича: «Избранные маршруты»
 
-Дата: 2026-07-04
+
 
 ## 1. Цель фичи
 
@@ -20,7 +20,6 @@
 - `shared/src/commonMain/kotlin/com/volna/app/profile/presentation/ProfileScreen.kt` — добавлен пункт "Избранное" в профиль
 - `shared/src/commonMain/kotlin/com/volna/app/VolnaApp.kt` — добавлен маршрут и передача `FavoritesStore` в `MainTabs`
 
-> Примечание: игнорировать текущее состояние сборки Gradle — файл документации составлен на основе текущей реализации кода в репозитории.
 
 ## 3. Код реализации
 
