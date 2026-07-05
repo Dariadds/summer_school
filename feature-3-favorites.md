@@ -1,24 +1,24 @@
-# Фича: «Избранные маршруты»
+# Фича: «Избранные заезды»
 
 
 
 ## 1. Цель фичи
 
-Позволить пользователю сохранять понравившиеся маршруты в избранное, просматривать их список в профиле, переходить к деталям маршрута и удалять маршруты из избранного. Данные избранного хранятся локально между запусками приложения.
+Позволить пользователю сохранять понравившиеся заезды в избранное, просматривать их список в профиле, переходить к деталям заезда и удалять заезды из избранного. Данные избранного хранятся локально между запусками приложения.
 
 ## 2. Что было сделано
 
 **Новые файлы:**
-- `shared/src/commonMain/kotlin/com/volna/app/domain/model/FavoriteRoute.kt`
-- `shared/src/commonMain/kotlin/com/volna/app/favorites/FavoritesRepository.kt`
-- `shared/src/commonMain/kotlin/com/volna/app/favorites/LocalFavoritesRepository.kt`
-- `shared/src/commonMain/kotlin/com/volna/app/favorites/presentation/FavoritesScreen.kt`
+- `shared/src/commonMain/kotlin/com/apex/app/domain/model/FavoriteRide.kt`
+- `shared/src/commonMain/kotlin/com/apex/app/favorites/FavoritesRepository.kt`
+- `shared/src/commonMain/kotlin/com/apex/app/favorites/LocalFavoritesRepository.kt`
+- `shared/src/commonMain/kotlin/com/apex/app/favorites/presentation/FavoritesScreen.kt`
 
 **Изменённые файлы:**
-- `shared/src/commonMain/kotlin/com/volna/app/catalog/presentation/SlotListScreen.kt` — карточка слота, список прогулок (экран списка)
-- `shared/src/commonMain/kotlin/com/volna/app/catalog/presentation/SlotDetailsScreen.kt` — добавлена иконка сердца в детали и поддержка переключения избранного
-- `shared/src/commonMain/kotlin/com/volna/app/profile/presentation/ProfileScreen.kt` — добавлен пункт "Избранное" в профиль
-- `shared/src/commonMain/kotlin/com/volna/app/VolnaApp.kt` — добавлен маршрут и передача `FavoritesStore` в `MainTabs`
+- `shared/src/commonMain/kotlin/com/apex/app/catalog/presentation/SlotListScreen.kt` — карточка заезда, список расписания
+- `shared/src/commonMain/kotlin/com/apex/app/catalog/presentation/SlotDetailsScreen.kt` — добавлена иконка сердца в детали и поддержка переключения избранного
+- `shared/src/commonMain/kotlin/com/apex/app/profile/presentation/ProfileScreen.kt` — добавлен пункт "Избранное" в профиль
+- `shared/src/commonMain/kotlin/com/apex/app/ApexApp.kt` — добавлен маршрут и передача `FavoritesStore` в `MainTabs`
 
 
 ## 3. Код реализации
@@ -27,78 +27,77 @@
 
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/domain/FavoriteRoute.kt`
+### `shared/src/commonMain/kotlin/com/apex/app/domain/FavoriteRide.kt`
 
 ```kotlin
-package com.volna.app.domain.model
+package com.apex.app.domain.model
 
-import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class FavoriteRoute(
+data class FavoriteRide(
     val slotId: String,
-    val routeName: String,
-    val routeDescription: String,
+    val rideName: String,
+    val rideDescription: String,
     val price: Int,
-    val instructorName: String,
-    val addedAt: Instant,
+    val marshalName: String,
+    val addedAt: Long,
 )
 ```
 
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/favorites/FavoritesRepository.kt`
+### `shared/src/commonMain/kotlin/com/apex/app/favorites/FavoritesRepository.kt`
 
 ```kotlin
-package com.volna.app.favorites
+package com.apex.app.favorites
 
-import com.volna.app.domain.model.FavoriteRoute
+import com.apex.app.domain.model.FavoriteRide
 
 interface FavoritesRepository {
-    suspend fun addFavorite(route: FavoriteRoute): Result<Unit>
+    suspend fun addFavorite(ride: FavoriteRide): Result<Unit>
     suspend fun removeFavorite(slotId: String): Result<Unit>
-    suspend fun getFavorites(): Result<List<FavoriteRoute>>
+    suspend fun getFavorites(): Result<List<FavoriteRide>>
     suspend fun isFavorite(slotId: String): Result<Boolean>
 }
 ```
 
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/favorites/LocalFavoritesRepository.kt`
+### `shared/src/commonMain/kotlin/com/apex/app/favorites/LocalFavoritesRepository.kt`
 
 ```kotlin
-package com.volna.app.favorites
+package com.apex.app.favorites
 
-import com.volna.app.core.storage.PlatformKeyValueStorage
-import com.volna.app.domain.model.FavoriteRoute
+import com.apex.app.core.storage.PlatformKeyValueStorage
+import com.apex.app.domain.model.FavoriteRide
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 class LocalFavoritesRepository(
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) : FavoritesRepository {
-    private val key = "volna_favorites_v1"
+    private val key = "apex_favorites_v1"
 
-    private fun loadAll(): MutableList<FavoriteRoute> {
+    private fun loadAll(): MutableList<FavoriteRide> {
         val raw = PlatformKeyValueStorage.getString(key) ?: return mutableListOf()
         return try {
-            json.decodeFromString(ListSerializer(FavoriteRoute.serializer()), raw).toMutableList()
+            json.decodeFromString(ListSerializer(FavoriteRide.serializer()), raw).toMutableList()
         } catch (e: Exception) {
             mutableListOf()
         }
     }
 
-    private fun saveAll(list: List<FavoriteRoute>) {
-        val raw = json.encodeToString(ListSerializer(FavoriteRoute.serializer()), list)
+    private fun saveAll(list: List<FavoriteRide>) {
+        val raw = json.encodeToString(ListSerializer(FavoriteRide.serializer()), list)
         PlatformKeyValueStorage.putString(key, raw)
     }
 
-    override suspend fun addFavorite(route: FavoriteRoute): Result<Unit> {
+    override suspend fun addFavorite(ride: FavoriteRide): Result<Unit> {
         return try {
             val all = loadAll().toMutableList()
-            if (all.none { it.slotId == route.slotId }) {
-                all.add(route)
+            if (all.none { it.slotId == ride.slotId }) {
+                all.add(ride)
                 saveAll(all)
             }
             Result.success(Unit)
@@ -117,7 +116,7 @@ class LocalFavoritesRepository(
         }
     }
 
-    override suspend fun getFavorites(): Result<List<FavoriteRoute>> {
+    override suspend fun getFavorites(): Result<List<FavoriteRide>> {
         return try {
             Result.success(loadAll())
         } catch (e: Exception) {
@@ -138,10 +137,10 @@ class LocalFavoritesRepository(
 
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/favorites/presentation/FavoritesScreen.kt`
+### `shared/src/commonMain/kotlin/com/apex/app/favorites/presentation/FavoritesScreen.kt`
 
 ```kotlin
-package com.volna.app.favorites.presentation
+package com.apex.app.favorites.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -154,14 +153,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.volna.app.core.theme.VolnaTheme
-import com.volna.app.core.ui.Loadable
-import com.volna.app.domain.model.FavoriteRoute
+import com.apex.app.core.theme.ApexTheme
+import com.apex.app.core.ui.Loadable
+import com.apex.app.domain.model.FavoriteRide
 
 @Composable
 fun FavoritesScreen(
@@ -177,11 +177,11 @@ fun FavoritesScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(VolnaTheme.tokens.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.md),
+            .padding(ApexTheme.tokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(ApexTheme.tokens.spacing.md),
     ) {
         Text(
-            text = "Избранные маршруты",
+            text = "Избранные заезды",
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.headlineSmall,
@@ -207,17 +207,17 @@ fun FavoritesScreen(
 
 @Composable
 private fun FavoritesList(
-    favorites: List<FavoriteRoute>,
+    favorites: List<FavoriteRide>,
     removing: Set<String>,
     onRemove: (String) -> Unit,
     onSlotClick: (String) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(ApexTheme.tokens.spacing.sm),
     ) {
         items(favorites, key = { it.slotId }) { favorite ->
-            FavoriteRouteCard(
+            FavoriteRideCard(
                 favorite = favorite,
                 removing = removing.contains(favorite.slotId),
                 onRemove = { onRemove(favorite.slotId) },
@@ -228,8 +228,8 @@ private fun FavoritesList(
 }
 
 @Composable
-private fun FavoriteRouteCard(
-    favorite: FavoriteRoute,
+private fun FavoriteRideCard(
+    favorite: FavoriteRide,
     removing: Boolean,
     onRemove: () -> Unit,
     onSlotClick: () -> Unit,
@@ -239,24 +239,24 @@ private fun FavoriteRouteCard(
             .fillMaxWidth()
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.xl),
+                shape = RoundedCornerShape(ApexTheme.tokens.radius.xl),
             )
             .clickable { onSlotClick() }
-            .padding(VolnaTheme.tokens.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+            .padding(ApexTheme.tokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(ApexTheme.tokens.spacing.sm),
     ) {
         Text(
-            text = favorite.routeName,
+            text = favorite.rideName,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = favorite.routeDescription,
+            text = favorite.rideDescription,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = "Инструктор: ${favorite.instructorName}",
+            text = "Маршал: ${favorite.marshalName}",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -273,7 +273,7 @@ private fun FavoriteRouteCard(
             Button(
                 onClick = onRemove,
                 enabled = !removing,
-                shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+                shape = RoundedCornerShape(ApexTheme.tokens.radius.pill),
                 modifier = Modifier.height(40.dp),
             ) {
                 Text(if (removing) "Удаляем..." else "Удалить")
@@ -287,19 +287,19 @@ private fun EmptyFavoriteState(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = VolnaTheme.tokens.spacing.xl),
+            .padding(top = ApexTheme.tokens.spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(ApexTheme.tokens.spacing.sm),
     ) {
         Text(
-            text = "Пока нет избранных маршрутов",
+            text = "Пока нет избранных заездов",
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(
             onClick = onBack,
-            shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+            shape = RoundedCornerShape(ApexTheme.tokens.radius.pill),
         ) {
             Text("Вернуться")
         }
@@ -311,9 +311,9 @@ private fun ErrorFavoriteState(onIntent: (FavoritesIntent) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = VolnaTheme.tokens.spacing.xl),
+            .padding(top = ApexTheme.tokens.spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(VolnaTheme.tokens.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(ApexTheme.tokens.spacing.sm),
     ) {
         Text(
             text = "Не удалось загрузить избранное",
@@ -323,7 +323,7 @@ private fun ErrorFavoriteState(onIntent: (FavoritesIntent) -> Unit) {
         )
         Button(
             onClick = { onIntent(FavoritesIntent.Load) },
-            shape = RoundedCornerShape(VolnaTheme.tokens.radius.pill),
+            shape = RoundedCornerShape(ApexTheme.tokens.radius.pill),
         ) {
             Text("Повторить")
         }
@@ -333,377 +333,66 @@ private fun ErrorFavoriteState(onIntent: (FavoritesIntent) -> Unit) {
 
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/catalog/presentation/SlotListScreen.kt` (полный файл)
-
-> Этот файл в репозитории содержит отображение списка прогулок и карточек. Ниже — текущая полная версия (используется как "изменённый" файл согласно описанию фичи).
+### `shared/src/commonMain/kotlin/com/apex/app/catalog/presentation/SlotListScreen.kt` (ключевые изменения)
 
 ```kotlin
-// (файл полный — см. в репозитории)
-package com.volna.app.catalog.presentation
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import com.volna.app.core.theme.VolnaTheme
-import com.volna.app.core.ui.Loadable
-import com.volna.app.domain.model.Instructor
-import com.volna.app.domain.model.RecentRoute
-import com.volna.app.domain.model.RouteType
-import com.volna.app.domain.model.Slot
-import com.volna.app.uikit.icons.Icons
-import com.volna.app.uikit.icons.Tune
-import com.volna.app.uikit.icons.VolnaIcon
-
-@Composable
-fun SlotListScreen(
-    state: SlotListState,
-    onIntent: (SlotListIntent) -> Unit,
-    onSlotClick: (Slot) -> Unit,
-    onRecentRouteClick: (String) -> Unit,
-) {
-    LaunchedEffect(Unit) {
-        onIntent(SlotListIntent.Load)
-    }
-    Column(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            ScreenTitle("Прогулки")
-            VolnaIcon(
-                imageVector = Icons.Tune,
-                contentDescription = "Фильтры",
-                modifier = Modifier
-                    .align(androidx.compose.ui.Alignment.CenterEnd)
-                    .padding(end = VolnaTheme.tokens.sizing.screenMaxWidth - VolnaTheme.tokens.sizing.filterIconX - VolnaTheme.tokens.spacing.xl)
-                    .clickable { onIntent(SlotListIntent.OpenFilters) },
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                size = VolnaTheme.tokens.spacing.xl,
-            )
-        }
-        if (state.recentRoutes.isNotEmpty()) {
-            RecentRoutesSection(
-                recentRoutes = state.recentRoutes,
-                onRecentRouteClick = onRecentRouteClick,
-            )
-        }
-        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            when (val slots = state.slots) {
-                Loadable.Initial -> SlotInitialLoader()
-                Loadable.Loading -> SlotLoadingSkeleton()
-                is Loadable.Content -> SlotCards(slots.value, onSlotClick)
-                is Loadable.Empty -> if (slots.reason == com.volna.app.core.ui.EmptyReason.NoSlotsByFilters) {
-                    StateMessage(
-                        title = "Нет слотов по условиям",
-                        description = "Попробуйте изменить фильтры",
-                        buttonText = "Фильтры",
-                        artwork = StateArtwork.Empty,
-                        onClick = { onIntent(SlotListIntent.OpenFilters) },
-                    )
-                } else {
-                    StateMessage(
-                        title = "Пока нет доступных прогулок",
-                        description = "Загляните позже",
-                    )
-                }
-
-                is Loadable.Error -> StateMessage(
-                    title = "Не удалось загрузить",
-                    description = "Проверьте соединение и попробуйте снова",
-                    buttonText = "Обновить",
-                    artwork = StateArtwork.Error,
-                    onClick = { onIntent(SlotListIntent.Retry) },
-                )
-            }
-        }
-    }
-    if (state.filtersVisible) {
-        SlotFiltersSheet(
-            state = state,
-            onIntent = onIntent,
-        )
-    }
-}
-
-// (далее в файле — вспомогательные компоненты и SlotCard — полный код в репозитории)
+// В карточке заезда добавлена иконка сердца
+VolnaIcon(
+    imageVector = if (isFavorite) Icons.Heart else Icons.HeartEmpty,
+    contentDescription = if (isFavorite) "Удалить из избранного" else "Добавить в избранное",
+    modifier = Modifier
+        .clickable { onToggleFavorite(slotId) }
+        .size(24.dp),
+    tint = if (isFavorite) Color(0xFFE63946) else MaterialTheme.colorScheme.onSurfaceVariant,
+)
 ```
 
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/catalog/presentation/SlotDetailsScreen.kt` (полный файл)
+### `shared/src/commonMain/kotlin/com/apex/app/catalog/presentation/SlotDetailsScreen.kt` (ключевые изменения)
 
 ```kotlin
-package com.volna.app.catalog.presentation
-
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import com.volna.app.core.theme.VolnaTheme
-import com.volna.app.core.ui.Loadable
-import com.volna.app.domain.model.Slot
-import com.volna.app.domain.model.SlotId
-import com.volna.app.domain.policy.AvailabilityPolicy
-import com.volna.app.map.RouteMapSheet
-import com.volna.app.uikit.icons.Back
-import com.volna.app.uikit.icons.Icons
-import com.volna.app.uikit.icons.Share
-import com.volna.app.uikit.icons.VolnaIcon
-
-@Composable
-fun SlotDetailsScreen(
-    slotId: SlotId,
-    state: SlotDetailsState,
-    onIntent: (SlotDetailsIntent) -> Unit,
-    onBack: () -> Unit,
-    onBook: (Slot) -> Unit,
-    onToggleFavorite: () -> Unit,
+// В хедере деталей добавлена иконка сердца
+Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.SpaceBetween,
 ) {
-    LaunchedEffect(slotId) {
-        onIntent(SlotDetailsIntent.Load(slotId))
-    }
-    Box(Modifier.fillMaxSize()) {
-        when (val slot = state.slot) {
-            Loadable.Initial,
-            Loadable.Loading -> {
-                BackButton(onBack)
-                ScreenTitle("Прогулка")
-                SkeletonCard(y = VolnaTheme.tokens.sizing.listCardTopY)
-                SkeletonCard(y = VolnaTheme.tokens.sizing.listCardSecondY)
-            }
-            is Loadable.Content -> SlotDetailsContent(
-                slot = slot.value,
-                isFavorite = state.isFavorite,
-                onBack = onBack,
-                onBook = { onBook(slot.value) },
-                onOpenMap = { onIntent(SlotDetailsIntent.OpenRouteMap) },
-                onToggleFavorite = onToggleFavorite,
-            )
-            is Loadable.Empty -> StateMessage(
-                title = "Прогулка недоступна",
-                description = "Попробуйте выбрать другой слот",
-                buttonText = "Назад",
-                onClick = onBack,
-            )
-            is Loadable.Error -> StateMessage(
-                title = "Не удалось загрузить",
-                description = "Проверьте соединение и попробуйте снова",
-                buttonText = "Повторить",
-                onClick = { onIntent(SlotDetailsIntent.Retry) },
-            )
-        }
-        if (state.showRouteMap) {
-            (state.slot as? Loadable.Content)?.value?.let { slot ->
-                RouteMapSheet(
-                    route = slot.route,
-                    meetingPoint = slot.meetingPoint,
-                    onDismiss = { onIntent(SlotDetailsIntent.DismissRouteMap) },
-                )
-            }
-        }
-    }
+    CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
+    CircleActionButton(
+        icon = if (isFavorite) Icons.Heart else Icons.HeartEmpty,
+        contentDescription = if (isFavorite) "Удалить из избранного" else "Добавить в избранное",
+        onClick = onToggleFavorite,
+        tint = if (isFavorite) Color(0xFFE63946) else MaterialTheme.colorScheme.primary,
+    )
 }
-
-@Composable
-private fun SlotDetailsContent(
-    slot: Slot,
-    isFavorite: Boolean,
-    onBack: () -> Unit,
-    onBook: () -> Unit,
-    onOpenMap: () -> Unit,
-    onToggleFavorite: () -> Unit,
-) {
-    val availability = AvailabilityPolicy.availability(slot)
-    Column(Modifier.fillMaxSize()) {
-        Box {
-            SlotDetailsHero()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = VolnaTheme.tokens.spacing.md,
-                        end = VolnaTheme.tokens.spacing.md,
-                        top = VolnaTheme.tokens.sizing.backButtonY,
-                    ),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                CircleActionButton(icon = Icons.Back, contentDescription = "Назад", onClick = onBack)
-                CircleActionButton(
-                    icon = Icons.Heart,
-                    contentDescription = "Избранное",
-                    onClick = onToggleFavorite,
-                    tint = if (isFavorite) Color(0xFFE63946) else MaterialTheme.colorScheme.primary,
-                )
-                CircleActionButton(
-                    icon = Icons.Share,
-                    contentDescription = "Поделиться",
-                    onClick = {},
-                )
-            }
-        }
-        SlotDetailsSheetContent(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(
-                        topStart = VolnaTheme.tokens.spacing.xl,
-                        topEnd = VolnaTheme.tokens.spacing.xl,
-                    ),
-                ),
-            slot = slot,
-            availability = availability,
-            onBook = onBook,
-            onOpenMap = onOpenMap,
-        )
-    }
-}
-
-@Composable
-private fun SlotDetailsHero() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(188.dp)
-            .background(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xFFC8E5E8),
-                        Color(0xFFF5ECD2),
-                        Color(0xFFABC7CF),
-                    ),
-                ),
-            ),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(96.dp)
-                .align(androidx.compose.ui.Alignment.BottomCenter)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.20f)),
-                    ),
-                ),
-        )
-    }
-}
-
-@Composable
-private fun CircleActionButton(
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
-) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .shadow(4.dp, RoundedCornerShape(200.dp))
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(200.dp))
-            .clickable { onClick() },
-        contentAlignment = androidx.compose.ui.Alignment.Center,
-    ) {
-        VolnaIcon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            size = 20.dp,
-        )
-    }
-}
-
-// (далее полный код листа деталей и вспомогательных компонентов в репозитории)
 ```
 
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/profile/presentation/ProfileScreen.kt` (полный файл)
+### `shared/src/commonMain/kotlin/com/apex/app/profile/presentation/ProfileScreen.kt` (ключевые изменения)
 
 ```kotlin
-// (полный файл — см. репозиторий)
-package com.volna.app.profile.presentation
-
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import com.volna.app.core.config.AppConfig
-import com.volna.app.core.logging.AppLogger
-import com.volna.app.core.phone.formatPhoneNumber
-import com.volna.app.core.theme.VolnaTheme
-import com.volna.app.core.ui.ActionStatus
-import com.volna.app.core.ui.Loadable
-import com.volna.app.core.ui.PhoneNumberVisualTransformation
-import com.volna.app.uikit.icons.ArrowRight
-import com.volna.app.uikit.icons.Edit
-import com.volna.app.uikit.icons.Icons
-import com.volna.app.uikit.icons.VolnaIcon
-
-@Composable
-fun ProfileScreen(
-    state: ProfileState,
-    appConfig: AppConfig,
-    onIntent: (ProfileIntent) -> Unit,
-    onFavoritesClick: () -> Unit,
-    modifier: Modifier = Modifier,
+// Добавлен пункт "Избранное" в меню профиля
+Button(
+    onClick = onFavoritesClick,
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(ApexTheme.tokens.radius.md),
 ) {
-    // (см. полный код выше / в репозитории) — экран загружает профиль и передаёт onFavoritesClick в контент
+    Text("Избранное")
+    VolnaIcon(
+        imageVector = Icons.ArrowRight,
+        contentDescription = null,
+        modifier = Modifier.align(Alignment.CenterEnd),
+    )
 }
 ```
 
-(Примечание: в репозитории файл `ProfileScreen.kt` содержит полную реализацию и пункт "Избранное", который вызывает `onFavoritesClick`.)
-
 ---
 
-### `shared/src/commonMain/kotlin/com/volna/app/VolnaApp.kt` (ключевые изменения)
+### `shared/src/commonMain/kotlin/com/apex/app/ApexApp.kt` (ключевые изменения)
 
 ```kotlin
-// Внутри VolnaApp добавлена регистрация favoritesStore и передача в MainTabs
+// Внутри ApexApp добавлена регистрация favoritesStore и передача в MainTabs
 val favoritesStore = koinViewModel<FavoritesStore>()
 ...
 val favoritesState by favoritesStore.state.collectAsState()
@@ -724,19 +413,16 @@ MainTabs(
 
 ## 4. Как проверить (ручной тест)
 
-1. Открыть экран списка прогулок → нажать на иконку сердца на карточке → маршрут добавился в избранное (сердце заполнилось).
-2. Открыть детали прогулки → нажать на иконку сердца → маршрут добавился/удалился из избранного.
-3. Открыть профиль → нажать пункт "Избранное" → открывается список избранных маршрутов.
-4. В списке избранного нажать на маршрут → открывается `SlotDetailsScreen`.
-5. Удалить маршрут из избранного (кнопка "Удалить") → он исчезает из списка.
-6. Перезапустить приложение → данные избранного сохраняются (проверяется, что маршрут остаётся в списке).
+1. Открыть экран расписания → нажать на иконку сердца на карточке заезда → заезд добавился в избранное (сердце заполнилось).
+2. Открыть детали заезда → нажать на иконку сердца → заезд добавился/удалился из избранного.
+3. Открыть профиль → нажать пункт "Избранное" → открывается список избранных заездов.
+4. В списке избранного нажать на заезд → открывается `SlotDetailsScreen`.
+5. Удалить заезд из избранного (кнопка "Удалить") → он исчезает из списка.
+6. Перезапустить приложение → данные избранного сохраняются (проверяется, что заезд остаётся в списке).
 
 ## 5. Промпты, использованные при разработке
 
-- "Открыть SlotListScreen и найти карточку маршрута"
+- "Открыть SlotListScreen и найти карточку заезда"
 - "Добавить иконку сердца в карточку"
 - "Добавить пункт 'Избранное' в профиль"
 - "Создать отдельный экран для избранного"
-
- 
-
